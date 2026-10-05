@@ -584,6 +584,39 @@
     return window.btoa(binary);
   }
 
+  // Parse ID3 Tags directly from fetched ArrayBuffer (bypasses proxy Range header limitations)
+  function loadID3TagsViaArrayBuffer(url, cleanFileName) {
+    fetch(url, { headers: { 'Range': 'bytes=0-524288' } })
+      .then(res => res.arrayBuffer())
+      .then(buffer => {
+        jsmediatags.read(buffer, {
+          onSuccess: function(tag) {
+            const tags = tag.tags;
+            if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
+            if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
+            document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
+
+            if (tags.picture && tags.picture.data) {
+              try {
+                const base64String = byteArrayToBase64(tags.picture.data);
+                document.getElementById('album-art').src = `data:${tags.picture.format};base64,${base64String}`;
+              } catch (e) {
+                console.error("Error converting artwork base64:", e);
+              }
+            }
+          },
+          onError: function(err) {
+            console.warn("ID3 ArrayBuffer read error:", err);
+            document.getElementById('track-title').innerText = cleanFileName.toUpperCase();
+            document.getElementById('track-artist').innerText = "AUDIO STREAM";
+          }
+        });
+      })
+      .catch(err => {
+        console.warn("Fetch array buffer for metadata failed:", err);
+      });
+  }
+
   function playTrack(item) {
     const streamUrl = `${PROXY_URL}?id=${item.id}`;
     
@@ -591,7 +624,7 @@
     audio.src = streamUrl;
     applyNightcoreSettings();
     
-    // Play immediately without waiting for ID3 metadata parsing
+    // Play immediately without waiting for metadata parsing
     audio.play().catch(err => {
       console.error("Playback error:", err);
       document.getElementById('track-artist').innerText = "STREAM BLOCKED";
@@ -604,29 +637,8 @@
     document.getElementById('track-details').innerText = "GDRIVE MP3";
     document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
 
-    // Asynchronously read ID3 tags using XHR with partial range support
-    jsmediatags.read(streamUrl, {
-      onSuccess: function(tag) {
-        const tags = tag.tags;
-        if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
-        if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
-        document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
-
-        if (tags.picture && tags.picture.data) {
-          try {
-            const base64String = byteArrayToBase64(tags.picture.data);
-            document.getElementById('album-art').src = `data:${tags.picture.format};base64,${base64String}`;
-          } catch (e) {
-            console.error("Error converting artwork base64:", e);
-          }
-        }
-      },
-      onError: function(err) {
-        console.warn("ID3 read error:", err);
-        document.getElementById('track-title').innerText = cleanFileName.toUpperCase();
-        document.getElementById('track-artist').innerText = "AUDIO STREAM";
-      }
-    });
+    // Load ID3 tags via safe ArrayBuffer slice
+    loadID3TagsViaArrayBuffer(streamUrl, cleanFileName);
   }
 
   function selectCurrentItem() {
