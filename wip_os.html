@@ -584,36 +584,49 @@
     return window.btoa(binary);
   }
 
-  // Parse ID3 Tags directly from fetched ArrayBuffer (bypasses proxy Range header limitations)
+  // Parse ID3 Tags directly from fetched ArrayBuffer
   function loadID3TagsViaArrayBuffer(url, cleanFileName) {
-    fetch(url, { headers: { 'Range': 'bytes=0-524288' } })
-      .then(res => res.arrayBuffer())
+    // Fetch initial 2MB range to capture embedded APIC artwork frames
+    fetch(url, { headers: { 'Range': 'bytes=0-2097152' } })
+      .then(res => {
+        if (!res.ok && res.status !== 206) {
+          throw new Error(`HTTP Error ${res.status}`);
+        }
+        return res.arrayBuffer();
+      })
       .then(buffer => {
         jsmediatags.read(buffer, {
           onSuccess: function(tag) {
             const tags = tag.tags;
+            
             if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
             if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
-            document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
+            if (tags.album || tags.year) {
+              document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
+            }
 
             if (tags.picture && tags.picture.data) {
               try {
                 const base64String = byteArrayToBase64(tags.picture.data);
-                document.getElementById('album-art').src = `data:${tags.picture.format};base64,${base64String}`;
+                const mime = tags.picture.format || 'image/jpeg';
+                document.getElementById('album-art').src = `data:${mime};base64,${base64String}`;
+                console.log("Album art loaded successfully.");
               } catch (e) {
-                console.error("Error converting artwork base64:", e);
+                console.error("Error converting picture data to base64:", e);
               }
+            } else {
+              console.warn("No picture frame (APIC) found in ID3 tags.");
             }
           },
           onError: function(err) {
-            console.warn("ID3 ArrayBuffer read error:", err);
+            console.warn("jsmediatags read error on arrayBuffer:", err);
             document.getElementById('track-title').innerText = cleanFileName.toUpperCase();
             document.getElementById('track-artist').innerText = "AUDIO STREAM";
           }
         });
       })
       .catch(err => {
-        console.warn("Fetch array buffer for metadata failed:", err);
+        console.error("Failed to fetch byte range for metadata:", err);
       });
   }
 
