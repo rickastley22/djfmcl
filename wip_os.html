@@ -198,18 +198,17 @@
       text-overflow: ellipsis;
     }
 
-    /* Middle Control Bar for Bass Boost & Nightcore Switches */
+    /* Middle Control Bar for Nightcore Switch */
     .controls-bar {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       padding-top: 6px;
-      padding-left: 2px;
-      padding-right: 2px;
+      padding-right: 5px;
       z-index: 5;
     }
 
-    .toggle-btn {
+    .nightcore-toggle {
       background: #111;
       border: 1px solid var(--fg);
       color: var(--fg);
@@ -220,11 +219,11 @@
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       border-radius: 4px;
     }
 
-    .toggle-btn.active {
+    .nightcore-toggle.active {
       background: var(--fg);
       color: var(--bg);
     }
@@ -317,10 +316,7 @@
   </div>
 
   <div class="controls-bar">
-    <button class="toggle-btn" id="bassboost-btn" onclick="toggleBassBoost()">
-      BASSBOOST: <span id="bb-status">OFF</span>
-    </button>
-    <button class="toggle-btn" id="nightcore-btn" onclick="toggleNightcore()">
+    <button class="nightcore-toggle" id="nightcore-btn" onclick="toggleNightcore()">
       NIGHTCORE: <span id="nc-status">OFF</span>
     </button>
   </div>
@@ -334,7 +330,7 @@
   </div>
 </div>
 
-<audio id="audio-player" crossorigin="anonymous"></audio>
+<audio id="audio-player"></audio>
 
 <script>
   const PUBLIC_DRIVE_LINK = "https://drive.google.com/drive/folders/1a8Z6mxESX7ynvjqUEeKjTpb3zN5czw-v?usp=sharing";
@@ -351,89 +347,7 @@
   let selectedIndex = 0;
   let folderHistory = [];
   let isNightcore = false;
-  let isBassBoost = false;
   const audio = document.getElementById('audio-player');
-
-  // Web Audio Context DSP Setup
-  let dspContext = null;
-  let audioSourceNode = null;
-  let bassFilterNode = null;
-  let distortionNode = null;
-  let gainNode = null;
-
-  function initAudioDSP() {
-    if (dspContext) return;
-
-    dspContext = new (window.AudioContext || window.webkitAudioContext)();
-    audioSourceNode = dspContext.createMediaElementSource(audio);
-
-    // Low-shelf filter for bass boost
-    bassFilterNode = dspContext.createBiquadFilter();
-    bassFilterNode.type = 'lowshelf';
-    bassFilterNode.frequency.setValueAtTime(180, dspContext.currentTime);
-
-    // Hard clipping WaveShaper node
-    distortionNode = dspContext.createWaveShaper();
-    distortionNode.curve = createHardClippingCurve(400);
-    distortionNode.oversample = '4x';
-
-    // Output Gain
-    gainNode = dspContext.createGain();
-
-    // Default bypass routing
-    audioSourceNode.connect(dspContext.destination);
-  }
-
-  function createHardClippingCurve(amount) {
-    const k = typeof amount === 'number' ? amount : 50;
-    const n_samples = 44100;
-    const curve = new Float32Array(n_samples);
-    const deg = Math.PI / 180;
-
-    for (let i = 0; i < n_samples; ++i) {
-      let x = (i * 2) / n_samples - 1;
-      curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
-    }
-    return curve;
-  }
-
-  function applyDSP() {
-    if (!dspContext) initAudioDSP();
-    if (dspContext.state === 'suspended') dspContext.resume();
-
-    audioSourceNode.disconnect();
-    bassFilterNode.disconnect();
-    distortionNode.disconnect();
-    gainNode.disconnect();
-
-    if (isBassBoost) {
-      bassFilterNode.gain.setValueAtTime(24, dspContext.currentTime);
-      audioSourceNode.connect(bassFilterNode);
-      bassFilterNode.connect(distortionNode);
-      distortionNode.connect(gainNode);
-      gainNode.connect(dspContext.destination);
-    } else {
-      audioSourceNode.connect(dspContext.destination);
-    }
-  }
-
-  function toggleBassBoost() {
-    triggerClickSound();
-    isBassBoost = !isBassBoost;
-
-    const btn = document.getElementById('bassboost-btn');
-    const statusText = document.getElementById('bb-status');
-
-    if (isBassBoost) {
-      btn.classList.add('active');
-      statusText.innerText = "ON";
-    } else {
-      btn.classList.remove('active');
-      statusText.innerText = "OFF";
-    }
-
-    applyDSP();
-  }
 
   function applyNightcoreSettings() {
     audio.preservesPitch = !isNightcore;
@@ -460,10 +374,8 @@
     applyNightcoreSettings();
   }
 
-  audio.addEventListener('play', () => {
-    applyNightcoreSettings();
-    applyDSP();
-  });
+  // Ensure playback settings apply whenever audio starts playing
+  audio.addEventListener('play', applyNightcoreSettings);
 
   function fetchDriveFolder(folderId = rootFolderId) {
     const query = `'${folderId}' in parents and trashed = false`;
@@ -660,42 +572,36 @@
     const streamUrl = `https://www.googleapis.com/drive/v3/files/${item.id}?alt=media&key=${DRIVE_API_KEY}`;
     audio.src = streamUrl;
     applyNightcoreSettings();
-    applyDSP();
     audio.play();
 
-    // Direct fallback labels
     document.getElementById('track-title').innerText = item.name.toUpperCase();
     document.getElementById('track-artist').innerText = "STREAMING...";
-    document.getElementById('track-details').innerText = "AUDIO FILE";
+    
+    // Reset to placeholder artwork prior to reading new tags
     document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
 
-    // Fetch file as Blob to bypass jsmediatags XHR CORS range restrictions
-    fetch(streamUrl)
-      .then(res => res.blob())
-      .then(blob => {
-        jsmediatags.read(blob, {
-          onSuccess: function(tag) {
-            const tags = tag.tags;
-            if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
-            if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
-            document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
+    jsmediatags.read(streamUrl, {
+      onSuccess: function(tag) {
+        const tags = tag.tags;
+        if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
+        if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
+        document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
 
-            if (tags.picture) {
-              let base64String = "";
-              for (let i = 0; i < tags.picture.data.length; i++) {
-                base64String += String.fromCharCode(tags.picture.data[i]);
-              }
-              document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
-            }
-          },
-          onError: function(err) {
-            document.getElementById('track-artist').innerText = "NO ID3 TAGS";
+        if (tags.picture) {
+          let base64String = "";
+          for (let i = 0; i < tags.picture.data.length; i++) {
+            base64String += String.fromCharCode(tags.picture.data[i]);
           }
-        });
-      })
-      .catch(() => {
-        document.getElementById('track-artist').innerText = "STREAMING ONLY";
-      });
+          document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
+        } else {
+          document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
+        }
+      },
+      onError: function() {
+        document.getElementById('track-artist').innerText = "ID3 READ FAILED";
+        document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
+      }
+    });
   }
 
   function selectCurrentItem() {
@@ -717,7 +623,6 @@
       playTrack(currentItems[0]);
     } else if (audio.paused) {
       applyNightcoreSettings();
-      applyDSP();
       audio.play();
     } else {
       audio.pause();
