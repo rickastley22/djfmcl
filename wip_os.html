@@ -367,17 +367,17 @@
     dspContext = new (window.AudioContext || window.webkitAudioContext)();
     audioSourceNode = dspContext.createMediaElementSource(audio);
 
-    // Low-shelf / Low-pass filter targeting sub & mid bass
+    // Low-shelf filter for bass boost
     bassFilterNode = dspContext.createBiquadFilter();
     bassFilterNode.type = 'lowshelf';
     bassFilterNode.frequency.setValueAtTime(180, dspContext.currentTime);
 
-    // Distortion WaveShaper for extreme hard clipping
+    // Hard clipping WaveShaper node
     distortionNode = dspContext.createWaveShaper();
-    distortionNode.curve = createHardClippingCurve(400); // Heavy overdrive multiplier
+    distortionNode.curve = createHardClippingCurve(400);
     distortionNode.oversample = '4x';
 
-    // Output Gain node to preserve levels
+    // Output Gain
     gainNode = dspContext.createGain();
 
     // Default bypass routing
@@ -392,7 +392,6 @@
 
     for (let i = 0; i < n_samples; ++i) {
       let x = (i * 2) / n_samples - 1;
-      // Hard clipping / TanH sigmoid distortion curve
       curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
     }
     return curve;
@@ -402,23 +401,18 @@
     if (!dspContext) initAudioDSP();
     if (dspContext.state === 'suspended') dspContext.resume();
 
-    // Disconnect old chain
     audioSourceNode.disconnect();
     bassFilterNode.disconnect();
     distortionNode.disconnect();
     gainNode.disconnect();
 
     if (isBassBoost) {
-      // Direct extreme low end boost
-      bassFilterNode.gain.setValueAtTime(24, dspContext.currentTime); // +24dB extreme boost
-      
-      // Route: Source -> Bass Boost Filter -> Distortion -> Gain -> Speakers
+      bassFilterNode.gain.setValueAtTime(24, dspContext.currentTime);
       audioSourceNode.connect(bassFilterNode);
       bassFilterNode.connect(distortionNode);
       distortionNode.connect(gainNode);
       gainNode.connect(dspContext.destination);
     } else {
-      // Clean direct pass
       audioSourceNode.connect(dspContext.destination);
     }
   }
@@ -466,7 +460,6 @@
     applyNightcoreSettings();
   }
 
-  // Ensure playback settings apply whenever audio starts playing
   audio.addEventListener('play', () => {
     applyNightcoreSettings();
     applyDSP();
@@ -670,34 +663,39 @@
     applyDSP();
     audio.play();
 
+    // Direct fallback labels
     document.getElementById('track-title').innerText = item.name.toUpperCase();
     document.getElementById('track-artist').innerText = "STREAMING...";
-    
-    // Reset to placeholder artwork prior to reading new tags
+    document.getElementById('track-details').innerText = "AUDIO FILE";
     document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
 
-    jsmediatags.read(streamUrl, {
-      onSuccess: function(tag) {
-        const tags = tag.tags;
-        if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
-        if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
-        document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
+    // Fetch file as Blob to bypass jsmediatags XHR CORS range restrictions
+    fetch(streamUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        jsmediatags.read(blob, {
+          onSuccess: function(tag) {
+            const tags = tag.tags;
+            if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
+            if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
+            document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
 
-        if (tags.picture) {
-          let base64String = "";
-          for (let i = 0; i < tags.picture.data.length; i++) {
-            base64String += String.fromCharCode(tags.picture.data[i]);
+            if (tags.picture) {
+              let base64String = "";
+              for (let i = 0; i < tags.picture.data.length; i++) {
+                base64String += String.fromCharCode(tags.picture.data[i]);
+              }
+              document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
+            }
+          },
+          onError: function(err) {
+            document.getElementById('track-artist').innerText = "NO ID3 TAGS";
           }
-          document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
-        } else {
-          document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
-        }
-      },
-      onError: function() {
-        document.getElementById('track-artist').innerText = "ID3 READ FAILED";
-        document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
-      }
-    });
+        });
+      })
+      .catch(() => {
+        document.getElementById('track-artist').innerText = "STREAMING ONLY";
+      });
   }
 
   function selectCurrentItem() {
