@@ -572,27 +572,17 @@
   }
 
   function playTrack(item) {
-    // Solution 1: Use direct web export link for html5 audio playback
-    const streamUrl = `https://drive.google.com/uc?export=download&id=${item.id}`;
-    
-    audio.crossOrigin = "anonymous";
+    const streamUrl = `https://www.googleapis.com/drive/v3/files/${item.id}?alt=media&key=${DRIVE_API_KEY}`;
     audio.src = streamUrl;
     applyNightcoreSettings();
-    
-    audio.play().catch(err => {
-      console.error("Playback error:", err);
-      document.getElementById('track-artist').innerText = "STREAM BLOCKED";
-    });
+    audio.play();
 
-    // Extract filename without extension for immediate display
-    const cleanFileName = item.name.replace(/\.[^/.]+$/, "");
-    
-    document.getElementById('track-title').innerText = cleanFileName.toUpperCase();
+    document.getElementById('track-title').innerText = item.name.toUpperCase();
     document.getElementById('track-artist').innerText = "STREAMING...";
-    document.getElementById('track-details').innerText = "GDRIVE MP3";
+    
+    // Reset to placeholder artwork prior to reading new tags
     document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
 
-    // Attempt to parse ID3 tags with fallback logic
     jsmediatags.read(streamUrl, {
       onSuccess: function(tag) {
         const tags = tag.tags;
@@ -606,13 +596,13 @@
             base64String += String.fromCharCode(tags.picture.data[i]);
           }
           document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
+        } else {
+          document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
         }
       },
-      onError: function(err) {
-        // Safe fallback: Drive CORS restriction prevented reading ID3 frame, use file details
-        console.warn("ID3 read suppressed by CORS:", err);
-        document.getElementById('track-title').innerText = cleanFileName.toUpperCase();
-        document.getElementById('track-artist').innerText = "AUDIO STREAM";
+      onError: function() {
+        document.getElementById('track-artist').innerText = "ID3 READ FAILED";
+        document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
       }
     });
   }
