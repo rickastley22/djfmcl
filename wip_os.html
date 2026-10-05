@@ -374,7 +374,6 @@
     applyNightcoreSettings();
   }
 
-  // Ensure playback settings apply whenever audio starts playing
   audio.addEventListener('play', applyNightcoreSettings);
 
   function fetchDriveFolder(folderId = rootFolderId) {
@@ -574,34 +573,40 @@
     applyNightcoreSettings();
     audio.play();
 
+    // Default UI metadata using file name
     document.getElementById('track-title').innerText = item.name.toUpperCase();
     document.getElementById('track-artist').innerText = "STREAMING...";
-    
-    // Reset to placeholder artwork prior to reading new tags
+    document.getElementById('track-details').innerText = "AUDIO FILE";
     document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
 
-    jsmediatags.read(streamUrl, {
-      onSuccess: function(tag) {
-        const tags = tag.tags;
-        if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
-        if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
-        document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
+    // Fetch binary blob directly to bypass jsmediatags XHR CORS range errors
+    fetch(streamUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        jsmediatags.read(blob, {
+          onSuccess: function(tag) {
+            const tags = tag.tags;
+            if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
+            if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
+            document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
 
-        if (tags.picture) {
-          let base64String = "";
-          for (let i = 0; i < tags.picture.data.length; i++) {
-            base64String += String.fromCharCode(tags.picture.data[i]);
+            if (tags.picture) {
+              let base64String = "";
+              for (let i = 0; i < tags.picture.data.length; i++) {
+                base64String += String.fromCharCode(tags.picture.data[i]);
+              }
+              document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
+            }
+          },
+          onError: function() {
+            // Keep filename gracefully when audio file has no ID3 frame
+            document.getElementById('track-artist').innerText = "NO ID3 TAGS";
           }
-          document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
-        } else {
-          document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
-        }
-      },
-      onError: function() {
-        document.getElementById('track-artist').innerText = "ID3 READ FAILED";
-        document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
-      }
-    });
+        });
+      })
+      .catch(() => {
+        document.getElementById('track-artist').innerText = "STREAMING ONLY";
+      });
   }
 
   function selectCurrentItem() {
