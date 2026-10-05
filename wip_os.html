@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>WIP // MP3 PLAYER</title>
   <!-- Metadata Extractor CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
@@ -16,24 +16,32 @@
 
     * { box-sizing: border-box; touch-action: manipulation; user-select: none; }
     
-    body {
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
       background-color: var(--bg);
+      overflow: hidden;
+    }
+
+    body {
       color: var(--fg);
       font-family: 'Courier New', Courier, monospace;
-      margin: 0;
-      padding: 10px;
       display: flex;
       justify-content: center;
       align-items: center;
+      /* Using 100dvh to handle mobile browser address bar dynamic heights */
       min-height: 100vh;
-      overflow: hidden;
-      position: relative;
+      min-height: 100dvh;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
 
     /* Metalcore CRT Screen Container */
     .ipod-body {
-      width: 100%;
+      width: 92%;
       max-width: 360px;
+      max-height: calc(100dvh - 20px);
       background: #080808;
       border: 4px solid #ffffff;
       border-radius: 20px;
@@ -42,6 +50,10 @@
       position: relative;
       z-index: 10;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      margin: auto;
     }
 
     /* Subtle iPod Watermark Logo in Bottom Right Corner */
@@ -86,6 +98,7 @@
       overflow: hidden;
       position: relative;
       z-index: 2;
+      flex-shrink: 0;
     }
 
     /* Matrix Rain Canvas */
@@ -191,6 +204,8 @@
       margin: 15px auto 5px auto;
       width: 210px;
       height: 210px;
+      max-width: 60vw;
+      max-height: 60vw;
       border: 3px solid var(--fg);
       border-radius: 50%;
       position: relative;
@@ -198,6 +213,7 @@
       touch-action: none;
       cursor: grab;
       z-index: 2;
+      flex-shrink: 0;
     }
 
     .wheel-container:active {
@@ -222,8 +238,8 @@
 
     .center-button {
       position: absolute;
-      width: 65px;
-      height: 65px;
+      width: 30%;
+      height: 30%;
       background: var(--fg);
       border-radius: 50%;
       top: 50%;
@@ -235,6 +251,14 @@
     .center-button:active { background: var(--dim); }
 
     .status-text { font-size: 9px; color: var(--dim); margin-top: 2px; }
+
+    /* Extra safety for short screens */
+    @media (max-height: 600px) {
+      .screen { height: 180px; }
+      .content-area { height: 95px; }
+      .album-art-box { width: 70px; height: 70px; }
+      .wheel-container { width: 170px; height: 170px; margin: 10px auto 0 auto; }
+    }
   </style>
 </head>
 <body>
