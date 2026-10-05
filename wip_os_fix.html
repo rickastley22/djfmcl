@@ -342,7 +342,6 @@
   const PUBLIC_DRIVE_LINK = "https://drive.google.com/drive/folders/1a8Z6mxESX7ynvjqUEeKjTpb3zN5czw-v?usp=sharing";
   const DRIVE_API_KEY = "AIzaSyBQCo54xkbkHqFwqGHnGFzgSSWAC22S_9c";
   const DEFAULT_PLACEHOLDER_ART = "media/fmcl_logo%20white.png";
-  const PROXY_URL = "https://drive-cors-proxy.sainttaintsemail.workers.dev";
 
   function extractFolderId(link) {
     const match = link.match(/\/folders\/([a-zA-Z0-9_-]+)/);
@@ -573,8 +572,8 @@
   }
 
   function playTrack(item) {
-    // Route audio streaming through your Cloudflare CORS Proxy
-    const streamUrl = `${PROXY_URL}?id=${item.id}`;
+    // Solution 1: Use direct web export link for html5 audio playback
+    const streamUrl = `https://drive.google.com/uc?export=download&id=${item.id}`;
     
     audio.crossOrigin = "anonymous";
     audio.src = streamUrl;
@@ -593,7 +592,7 @@
     document.getElementById('track-details').innerText = "GDRIVE MP3";
     document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
 
-    // Parse ID3 tags directly through proxy with CORS support
+    // Attempt to parse ID3 tags with fallback logic
     jsmediatags.read(streamUrl, {
       onSuccess: function(tag) {
         const tags = tag.tags;
@@ -610,7 +609,8 @@
         }
       },
       onError: function(err) {
-        console.warn("ID3 read error:", err);
+        // Safe fallback: Drive CORS restriction prevented reading ID3 frame, use file details
+        console.warn("ID3 read suppressed by CORS:", err);
         document.getElementById('track-title').innerText = cleanFileName.toUpperCase();
         document.getElementById('track-artist').innerText = "AUDIO STREAM";
       }
