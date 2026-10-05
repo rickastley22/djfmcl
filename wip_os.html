@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>WIP // MP3 PLAYER</title>
+  
+  <!-- App Icons -->
+  <link rel="icon" type="image/png" href="media/fmcl_logo%20white.png">
+  <link rel="apple-touch-icon" href="media/fmcl_logo%20white.png">
+
   <!-- Metadata Extractor CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
   <style>
@@ -198,17 +203,18 @@
       text-overflow: ellipsis;
     }
 
-    /* Middle Control Bar for Nightcore Switch */
+    /* Middle Control Bar for DSP Switches */
     .controls-bar {
       display: flex;
       justify-content: flex-end;
       align-items: center;
+      gap: 8px;
       padding-top: 6px;
       padding-right: 5px;
       z-index: 5;
     }
 
-    .nightcore-toggle {
+    .dsp-toggle {
       background: #111;
       border: 1px solid var(--fg);
       color: var(--fg);
@@ -223,7 +229,7 @@
       border-radius: 4px;
     }
 
-    .nightcore-toggle.active {
+    .dsp-toggle.active {
       background: var(--fg);
       color: var(--bg);
     }
@@ -316,7 +322,10 @@
   </div>
 
   <div class="controls-bar">
-    <button class="nightcore-toggle" id="nightcore-btn" onclick="toggleNightcore()">
+    <button class="dsp-toggle" id="bass-btn" onclick="toggleBassBoost()">
+      BASS: <span id="bass-status">OFF</span>
+    </button>
+    <button class="dsp-toggle" id="nightcore-btn" onclick="toggleNightcore()">
       NIGHTCORE: <span id="nc-status">OFF</span>
     </button>
   </div>
@@ -330,7 +339,7 @@
   </div>
 </div>
 
-<audio id="audio-player"></audio>
+<audio id="audio-player" crossorigin="anonymous"></audio>
 
 <script>
   const PUBLIC_DRIVE_LINK = "https://drive.google.com/drive/folders/1a8Z6mxESX7ynvjqUEeKjTpb3zN5czw-v?usp=sharing";
@@ -346,8 +355,34 @@
   let currentItems = [];
   let selectedIndex = 0;
   let folderHistory = [];
+  
   let isNightcore = false;
+  let isBassBoost = false;
+
   const audio = document.getElementById('audio-player');
+
+  // Web Audio Context & Bass Filter Nodes
+  let dspCtx = null;
+  let mediaSourceNode = null;
+  let bassFilterNode = null;
+
+  function initAudioDSP() {
+    if (dspCtx) return;
+    try {
+      dspCtx = new (window.AudioContext || window.webkitAudioContext)();
+      mediaSourceNode = dspCtx.createMediaElementSource(audio);
+
+      bassFilterNode = dspCtx.createBiquadFilter();
+      bassFilterNode.type = 'lowshelf';
+      bassFilterNode.frequency.value = 120; // Bass cutoff frequency
+      bassFilterNode.gain.value = isBassBoost ? 10 : 0; // 10dB boost when active
+
+      mediaSourceNode.connect(bassFilterNode);
+      bassFilterNode.connect(dspCtx.destination);
+    } catch (e) {
+      console.warn("Audio Context DSP init deferred or failed:", e);
+    }
+  }
 
   function applyNightcoreSettings() {
     audio.preservesPitch = !isNightcore;
@@ -374,7 +409,32 @@
     applyNightcoreSettings();
   }
 
-  audio.addEventListener('play', applyNightcoreSettings);
+  function toggleBassBoost() {
+    triggerClickSound();
+    initAudioDSP();
+    if (dspCtx && dspCtx.state === 'suspended') dspCtx.resume();
+
+    isBassBoost = !isBassBoost;
+
+    const btn = document.getElementById('bass-btn');
+    const statusText = document.getElementById('bass-status');
+
+    if (isBassBoost) {
+      btn.classList.add('active');
+      statusText.innerText = "ON";
+      if (bassFilterNode) bassFilterNode.gain.value = 10;
+    } else {
+      btn.classList.remove('active');
+      statusText.innerText = "OFF";
+      if (bassFilterNode) bassFilterNode.gain.value = 0;
+    }
+  }
+
+  audio.addEventListener('play', () => {
+    initAudioDSP();
+    if (dspCtx && dspCtx.state === 'suspended') dspCtx.resume();
+    applyNightcoreSettings();
+  });
 
   function fetchDriveFolder(folderId = rootFolderId) {
     const query = `'${folderId}' in parents and trashed = false`;
@@ -573,40 +633,30 @@
     applyNightcoreSettings();
     audio.play();
 
-    // Default UI metadata using file name
     document.getElementById('track-title').innerText = item.name.toUpperCase();
     document.getElementById('track-artist').innerText = "STREAMING...";
     document.getElementById('track-details').innerText = "AUDIO FILE";
     document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
 
-    // Fetch binary blob directly to bypass jsmediatags XHR CORS range errors
-    fetch(streamUrl)
-      .then(res => res.blob())
-      .then(blob => {
-        jsmediatags.read(blob, {
-          onSuccess: function(tag) {
-            const tags = tag.tags;
-            if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
-            if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
-            document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
+    jsmediatags.read(streamUrl, {
+      onSuccess: function(tag) {
+        const tags = tag.tags;
+        if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
+        if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
+        document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
 
-            if (tags.picture) {
-              let base64String = "";
-              for (let i = 0; i < tags.picture.data.length; i++) {
-                base64String += String.fromCharCode(tags.picture.data[i]);
-              }
-              document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
-            }
-          },
-          onError: function() {
-            // Keep filename gracefully when audio file has no ID3 frame
-            document.getElementById('track-artist').innerText = "NO ID3 TAGS";
+        if (tags.picture) {
+          let base64String = "";
+          for (let i = 0; i < tags.picture.data.length; i++) {
+            base64String += String.fromCharCode(tags.picture.data[i]);
           }
-        });
-      })
-      .catch(() => {
+          document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
+        }
+      },
+      onError: function() {
         document.getElementById('track-artist').innerText = "STREAMING ONLY";
-      });
+      }
+    });
   }
 
   function selectCurrentItem() {
