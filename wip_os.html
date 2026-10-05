@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>WIP // MP3 PLAYER</title>
   
-  <!-- App Icons -->
+  <!-- Favicon and Apple Touch Icon -->
   <link rel="icon" type="image/png" href="media/fmcl_logo%20white.png">
   <link rel="apple-touch-icon" href="media/fmcl_logo%20white.png">
 
@@ -203,50 +203,44 @@
       text-overflow: ellipsis;
     }
 
-    /* Lower Section: Controls & Wheel Row */
-    .controls-wrapper {
+    /* Middle Control Bar for Nightcore Switch */
+    .controls-bar {
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      width: 100%;
-      margin: 10px 0 5px 0;
-      position: relative;
+      justify-content: flex-end;
+      align-items: center;
+      padding-top: 6px;
+      padding-right: 5px;
       z-index: 5;
     }
 
-    .dsp-toggle {
-      background: #000;
+    .nightcore-toggle {
+      background: #111;
       border: 1px solid var(--fg);
       color: var(--fg);
       font-family: inherit;
-      font-size: 8px;
+      font-size: 9px;
       font-weight: bold;
-      width: 80px;
-      height: 28px;
-      padding: 0;
+      padding: 3px 6px;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      justify-content: center;
-      cursor: pointer;
       border-radius: 4px;
-      transition: all 0.15s ease;
-      letter-spacing: 0.5px;
-      margin-top: 5px;
-      flex-shrink: 0;
+      transition: background 0.1s ease, color 0.1s ease;
     }
 
-    .dsp-toggle.active {
+    .nightcore-toggle.active {
       background: var(--fg);
       color: var(--bg);
-      box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
     }
 
     /* Click Wheel */
     .wheel-container {
-      width: 170px;
-      height: 170px;
-      max-width: 48vw;
-      max-height: 48vw;
+      margin: 10px auto 5px auto;
+      width: 210px;
+      height: 210px;
+      max-width: 60vw;
+      max-height: 60vw;
       border: 3px solid var(--fg);
       border-radius: 50%;
       position: relative;
@@ -272,10 +266,10 @@
       z-index: 5;
     }
 
-    .btn-menu { top: 8px; left: 50%; transform: translateX(-50%); }
-    .btn-prev { left: 8px; top: 50%; transform: translateY(-50%); }
-    .btn-next { right: 8px; top: 50%; transform: translateY(-50%); }
-    .btn-play { bottom: 8px; left: 50%; transform: translateX(-50%); }
+    .btn-menu { top: 10px; left: 50%; transform: translateX(-50%); }
+    .btn-prev { left: 10px; top: 50%; transform: translateY(-50%); }
+    .btn-next { right: 10px; top: 50%; transform: translateY(-50%); }
+    .btn-play { bottom: 10px; left: 50%; transform: translateX(-50%); }
 
     .center-button {
       position: absolute;
@@ -298,7 +292,7 @@
       .screen { height: 180px; }
       .content-area { height: 95px; }
       .album-art-box { width: 70px; height: 70px; }
-      .wheel-container { width: 140px; height: 140px; }
+      .wheel-container { width: 170px; height: 170px; margin: 5px auto 0 auto; }
     }
   </style>
 </head>
@@ -327,27 +321,22 @@
     </div>
   </div>
 
-  <div class="controls-wrapper">
-    <!-- Bassboost Button on Upper Left -->
-    <button class="dsp-toggle" id="bass-btn" onclick="toggleBassBoost()">
-      BASSBOOST
-    </button>
-
-    <!-- Scroll Wheel -->
-    <div class="wheel-container" id="click-wheel">
-      <button class="wheel-btn btn-menu" onclick="navigateUp()">MENU</button>
-      <button class="wheel-btn btn-prev" onclick="prevTrack()">&lt;&lt;</button>
-      <button class="wheel-btn btn-next" onclick="nextTrack()">&gt;&gt;</button>
-      <button class="wheel-btn btn-play" onclick="togglePlay()">PLAY/PAUSE</button>
-      <div class="center-button" onclick="selectCurrentItem()"></div>
-    </div>
-
-    <!-- Nightcore Button on Upper Right -->
-    <button class="dsp-toggle" id="nightcore-btn" onclick="toggleNightcore()">
+  <div class="controls-bar">
+    <button class="nightcore-toggle" id="nightcore-btn" onclick="toggleNightcore()">
       NIGHTCORE
     </button>
   </div>
+
+  <div class="wheel-container" id="click-wheel">
+    <button class="wheel-btn btn-menu" onclick="navigateUp()">MENU</button>
+    <button class="wheel-btn btn-prev" onclick="prevTrack()">&lt;&lt;</button>
+    <button class="wheel-btn btn-next" onclick="nextTrack()">&gt;&gt;</button>
+    <button class="wheel-btn btn-play" onclick="togglePlay()">PLAY/PAUSE</button>
+    <div class="center-button" onclick="selectCurrentItem()"></div>
+  </div>
 </div>
+
+<audio id="audio-player"></audio>
 
 <script>
   const PUBLIC_DRIVE_LINK = "https://drive.google.com/drive/folders/1a8Z6mxESX7ynvjqUEeKjTpb3zN5czw-v?usp=sharing";
@@ -363,35 +352,14 @@
   let currentItems = [];
   let selectedIndex = 0;
   let folderHistory = [];
-  
   let isNightcore = false;
-  let isBassBoost = false;
-  let isPlaying = false;
+  const audio = document.getElementById('audio-player');
 
-  // Web Audio Context & Playback Engine (iOS Compatible)
-  let audioCtx = null;
-  let currentBufferSource = null;
-  let currentAudioBuffer = null;
-  let bassFilterNode = null;
-  let playbackStartTime = 0;
-  let startOffset = 0;
-
-  function initAudioCtx() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-  }
-
-  function applyDSPParameters() {
-    if (bassFilterNode) {
-      bassFilterNode.gain.setValueAtTime(isBassBoost ? 12 : 0, audioCtx.currentTime);
-    }
-    if (currentBufferSource) {
-      currentBufferSource.playbackRate.setValueAtTime(isNightcore ? 1.30 : 1.0, audioCtx.currentTime);
-    }
+  function applyNightcoreSettings() {
+    audio.preservesPitch = !isNightcore;
+    audio.webkitPreservesPitch = !isNightcore;
+    audio.mozPreservesPitch = !isNightcore;
+    audio.playbackRate = isNightcore ? 1.30 : 1.0;
   }
 
   function toggleNightcore() {
@@ -399,128 +367,18 @@
     isNightcore = !isNightcore;
     
     const btn = document.getElementById('nightcore-btn');
-    btn.classList.toggle('active', isNightcore);
-
-    applyDSPParameters();
-  }
-
-  function toggleBassBoost() {
-    triggerClickSound();
-    initAudioCtx();
-    isBassBoost = !isBassBoost;
-
-    const btn = document.getElementById('bass-btn');
-    btn.classList.toggle('active', isBassBoost);
-
-    applyDSPParameters();
-  }
-
-  async function playTrack(item) {
-    initAudioCtx();
     
-    if (currentBufferSource) {
-      try { currentBufferSource.stop(); } catch (e) {}
-      currentBufferSource.disconnect();
-      currentBufferSource = null;
+    if (isNightcore) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
     }
 
-    isPlaying = false;
-    startOffset = 0;
-
-    document.getElementById('track-title').innerText = item.name.toUpperCase();
-    document.getElementById('track-artist').innerText = "LOADING BUFFER...";
-    document.getElementById('track-details').innerText = "FETCHING AUDIO";
-    document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
-
-    const streamUrl = `https://www.googleapis.com/drive/v3/files/${item.id}?alt=media&key=${DRIVE_API_KEY}`;
-
-    try {
-      const response = await fetch(streamUrl);
-      const arrayBuffer = await response.arrayBuffer();
-
-      jsmediatags.read(new Blob([arrayBuffer]), {
-        onSuccess: function(tag) {
-          const tags = tag.tags;
-          if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
-          if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
-          document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
-
-          if (tags.picture) {
-            let base64String = "";
-            for (let i = 0; i < tags.picture.data.length; i++) {
-              base64String += String.fromCharCode(tags.picture.data[i]);
-            }
-            document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
-          }
-        },
-        onError: function() {
-          document.getElementById('track-artist').innerText = "DECODED AUDIO";
-          document.getElementById('track-details').innerText = "PLAYING";
-        }
-      });
-
-      currentAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-      startBufferPlayback(0);
-
-    } catch (err) {
-      console.error("Audio Decode Error:", err);
-      document.getElementById('track-artist').innerText = "DECODE ERROR";
-    }
+    applyNightcoreSettings();
   }
 
-  function startBufferPlayback(offset = 0) {
-    if (!currentAudioBuffer) return;
-
-    if (currentBufferSource) {
-      try { currentBufferSource.stop(); } catch(e) {}
-      currentBufferSource.disconnect();
-    }
-
-    currentBufferSource = audioCtx.createBufferSource();
-    currentBufferSource.buffer = currentAudioBuffer;
-
-    bassFilterNode = audioCtx.createBiquadFilter();
-    bassFilterNode.type = 'lowshelf';
-    bassFilterNode.frequency.setValueAtTime(150, audioCtx.currentTime);
-    
-    currentBufferSource.connect(bassFilterNode);
-    bassFilterNode.connect(audioCtx.destination);
-
-    applyDSPParameters();
-
-    playbackStartTime = audioCtx.currentTime - offset;
-    startOffset = offset;
-
-    currentBufferSource.start(0, offset);
-    isPlaying = true;
-
-    currentBufferSource.onended = () => {
-      if (isPlaying && (audioCtx.currentTime - playbackStartTime) >= (currentAudioBuffer.duration / (isNightcore ? 1.30 : 1.0))) {
-        isPlaying = false;
-        nextTrack();
-      }
-    };
-  }
-
-  function togglePlay() {
-    triggerClickSound();
-    initAudioCtx();
-
-    if (!currentAudioBuffer && currentItems.length > 0) {
-      playTrack(currentItems[selectedIndex]);
-      return;
-    }
-
-    if (isPlaying) {
-      startOffset += (audioCtx.currentTime - playbackStartTime) * (isNightcore ? 1.30 : 1.0);
-      currentBufferSource.stop();
-      isPlaying = false;
-      document.getElementById('track-details').innerText = "PAUSED";
-    } else if (currentAudioBuffer) {
-      startBufferPlayback(startOffset);
-      document.getElementById('track-details').innerText = "PLAYING";
-    }
-  }
+  // Ensure playback settings apply whenever audio starts playing
+  audio.addEventListener('play', applyNightcoreSettings);
 
   function fetchDriveFolder(folderId = rootFolderId) {
     const query = `'${folderId}' in parents and trashed = false`;
@@ -593,11 +451,15 @@
   });
 
   // Synthesizer Click Sound
+  let audioCtx = null;
+
   function triggerClickSound() {
     if (navigator.vibrate) navigator.vibrate(8);
 
     try {
-      initAudioCtx();
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
 
@@ -639,7 +501,7 @@
     const centerY = rect.top + rect.height / 2;
     const dist = Math.hypot(clientX - centerX, clientY - centerY);
 
-    if (dist < 30) return;
+    if (dist < 35) return;
 
     isDragging = true;
     previousAngle = getAngle(clientX, clientY);
@@ -709,6 +571,42 @@
     if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' });
   }
 
+  function playTrack(item) {
+    const streamUrl = `https://www.googleapis.com/drive/v3/files/${item.id}?alt=media&key=${DRIVE_API_KEY}`;
+    audio.src = streamUrl;
+    applyNightcoreSettings();
+    audio.play();
+
+    document.getElementById('track-title').innerText = item.name.toUpperCase();
+    document.getElementById('track-artist').innerText = "STREAMING...";
+    
+    // Reset to placeholder artwork prior to reading new tags
+    document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
+
+    jsmediatags.read(streamUrl, {
+      onSuccess: function(tag) {
+        const tags = tag.tags;
+        if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
+        if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
+        document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
+
+        if (tags.picture) {
+          let base64String = "";
+          for (let i = 0; i < tags.picture.data.length; i++) {
+            base64String += String.fromCharCode(tags.picture.data[i]);
+          }
+          document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
+        } else {
+          document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
+        }
+      },
+      onError: function() {
+        document.getElementById('track-artist').innerText = "ID3 READ FAILED";
+        document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
+      }
+    });
+  }
+
   function selectCurrentItem() {
     triggerClickSound();
     if (!currentItems[selectedIndex]) return;
@@ -722,14 +620,23 @@
     }
   }
 
+  function togglePlay() {
+    triggerClickSound();
+    if (audio.src === "" && currentItems.length > 0) {
+      playTrack(currentItems[0]);
+    } else if (audio.paused) {
+      applyNightcoreSettings();
+      audio.play();
+    } else {
+      audio.pause();
+    }
+  }
+
   function prevTrack() {
     triggerClickSound();
     if (currentItems.length === 0) return;
     selectedIndex = (selectedIndex - 1 + currentItems.length) % currentItems.length;
     renderList();
-    if (currentItems[selectedIndex].mimeType !== 'application/vnd.google-apps.folder') {
-      playTrack(currentItems[selectedIndex]);
-    }
   }
 
   function nextTrack() {
@@ -737,9 +644,6 @@
     if (currentItems.length === 0) return;
     selectedIndex = (selectedIndex + 1) % currentItems.length;
     renderList();
-    if (currentItems[selectedIndex].mimeType !== 'application/vnd.google-apps.folder') {
-      playTrack(currentItems[selectedIndex]);
-    }
   }
 
   function navigateUp() {
