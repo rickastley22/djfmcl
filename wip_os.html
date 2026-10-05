@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>WIP // MP3 PLAYER</title>
+  <meta name="description" content="wip_os by djfmcl">
+  <title>wip_os//djfmcl</title>
   
   <!-- Favicon and Apple Touch Icon -->
-  <link rel="icon" type="image/png" href="media/fmcl_logo%20white.png">
-  <link rel="apple-touch-icon" href="media/fmcl_logo%20white.png">
+  <link rel="icon" type="image/jpeg" href="/media/favicon_fmcl.jpg">
+  <link rel="apple-touch-icon" href="/media/favicon_fmcl.jpg">
 
   <!-- Metadata Extractor CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
@@ -378,6 +379,7 @@
     applyNightcoreSettings();
   }
 
+  // Ensure playback settings apply whenever audio starts playing
   audio.addEventListener('play', applyNightcoreSettings);
 
   function fetchDriveFolder(folderId = rootFolderId) {
@@ -571,87 +573,49 @@
     if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' });
   }
 
-  // Helper function to safely convert byte array to base64 in chunks
-  function byteArrayToBase64(array) {
-    let binary = '';
-    const bytes = new Uint8Array(array);
-    const len = bytes.byteLength;
-    const chunkSize = 8192;
-    for (let i = 0; i < len; i += chunkSize) {
-      const chunk = bytes.subarray(i, i + chunkSize);
-      binary += String.fromCharCode.apply(null, chunk);
-    }
-    return window.btoa(binary);
-  }
-
-  // Parse ID3 Tags directly from fetched ArrayBuffer
-  function loadID3TagsViaArrayBuffer(url, cleanFileName) {
-    // Fetch initial 2MB range to capture embedded APIC artwork frames
-    fetch(url, { headers: { 'Range': 'bytes=0-2097152' } })
-      .then(res => {
-        if (!res.ok && res.status !== 206) {
-          throw new Error(`HTTP Error ${res.status}`);
-        }
-        return res.arrayBuffer();
-      })
-      .then(buffer => {
-        jsmediatags.read(buffer, {
-          onSuccess: function(tag) {
-            const tags = tag.tags;
-            
-            if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
-            if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
-            if (tags.album || tags.year) {
-              document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
-            }
-
-            if (tags.picture && tags.picture.data) {
-              try {
-                const base64String = byteArrayToBase64(tags.picture.data);
-                const mime = tags.picture.format || 'image/jpeg';
-                document.getElementById('album-art').src = `data:${mime};base64,${base64String}`;
-                console.log("Album art loaded successfully.");
-              } catch (e) {
-                console.error("Error converting picture data to base64:", e);
-              }
-            } else {
-              console.warn("No picture frame (APIC) found in ID3 tags.");
-            }
-          },
-          onError: function(err) {
-            console.warn("jsmediatags read error on arrayBuffer:", err);
-            document.getElementById('track-title').innerText = cleanFileName.toUpperCase();
-            document.getElementById('track-artist').innerText = "AUDIO STREAM";
-          }
-        });
-      })
-      .catch(err => {
-        console.error("Failed to fetch byte range for metadata:", err);
-      });
-  }
-
   function playTrack(item) {
+    // Route audio streaming through your Cloudflare CORS Proxy
     const streamUrl = `${PROXY_URL}?id=${item.id}`;
     
     audio.crossOrigin = "anonymous";
     audio.src = streamUrl;
     applyNightcoreSettings();
     
-    // Play immediately without waiting for metadata parsing
     audio.play().catch(err => {
       console.error("Playback error:", err);
       document.getElementById('track-artist').innerText = "STREAM BLOCKED";
     });
 
+    // Extract filename without extension for immediate display
     const cleanFileName = item.name.replace(/\.[^/.]+$/, "");
     
     document.getElementById('track-title').innerText = cleanFileName.toUpperCase();
-    document.getElementById('track-artist').innerText = "PLAYING...";
+    document.getElementById('track-artist').innerText = "STREAMING...";
     document.getElementById('track-details').innerText = "GDRIVE MP3";
     document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
 
-    // Load ID3 tags via safe ArrayBuffer slice
-    loadID3TagsViaArrayBuffer(streamUrl, cleanFileName);
+    // Parse ID3 tags directly through proxy with CORS support
+    jsmediatags.read(streamUrl, {
+      onSuccess: function(tag) {
+        const tags = tag.tags;
+        if (tags.title) document.getElementById('track-title').innerText = tags.title.toUpperCase();
+        if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
+        document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
+
+        if (tags.picture) {
+          let base64String = "";
+          for (let i = 0; i < tags.picture.data.length; i++) {
+            base64String += String.fromCharCode(tags.picture.data[i]);
+          }
+          document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
+        }
+      },
+      onError: function(err) {
+        console.warn("ID3 read error:", err);
+        document.getElementById('track-title').innerText = cleanFileName.toUpperCase();
+        document.getElementById('track-artist').innerText = "AUDIO STREAM";
+      }
+    });
   }
 
   function selectCurrentItem() {
