@@ -378,7 +378,6 @@
     applyNightcoreSettings();
   }
 
-  // Ensure playback settings apply whenever audio starts playing
   audio.addEventListener('play', applyNightcoreSettings);
 
   function fetchDriveFolder(folderId = rootFolderId) {
@@ -572,28 +571,40 @@
     if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' });
   }
 
+  // Helper function to safely convert byte array to base64 in chunks
+  function byteArrayToBase64(array) {
+    let binary = '';
+    const bytes = new Uint8Array(array);
+    const len = bytes.byteLength;
+    const chunkSize = 8192;
+    for (let i = 0; i < len; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, chunk);
+    }
+    return window.btoa(binary);
+  }
+
   function playTrack(item) {
-    // Route audio streaming through your Cloudflare CORS Proxy
     const streamUrl = `${PROXY_URL}?id=${item.id}`;
     
     audio.crossOrigin = "anonymous";
     audio.src = streamUrl;
     applyNightcoreSettings();
     
+    // Play immediately without waiting for ID3 metadata parsing
     audio.play().catch(err => {
       console.error("Playback error:", err);
       document.getElementById('track-artist').innerText = "STREAM BLOCKED";
     });
 
-    // Extract filename without extension for immediate display
     const cleanFileName = item.name.replace(/\.[^/.]+$/, "");
     
     document.getElementById('track-title').innerText = cleanFileName.toUpperCase();
-    document.getElementById('track-artist').innerText = "STREAMING...";
+    document.getElementById('track-artist').innerText = "PLAYING...";
     document.getElementById('track-details').innerText = "GDRIVE MP3";
     document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
 
-    // Parse ID3 tags directly through proxy with CORS support
+    // Asynchronously read ID3 tags using XHR with partial range support
     jsmediatags.read(streamUrl, {
       onSuccess: function(tag) {
         const tags = tag.tags;
@@ -601,12 +612,13 @@
         if (tags.artist) document.getElementById('track-artist').innerText = "ARTIST: " + tags.artist.toUpperCase();
         document.getElementById('track-details').innerText = `${tags.album || 'SINGLE'} [${tags.year || 'N/A'}]`;
 
-        if (tags.picture) {
-          let base64String = "";
-          for (let i = 0; i < tags.picture.data.length; i++) {
-            base64String += String.fromCharCode(tags.picture.data[i]);
+        if (tags.picture && tags.picture.data) {
+          try {
+            const base64String = byteArrayToBase64(tags.picture.data);
+            document.getElementById('album-art').src = `data:${tags.picture.format};base64,${base64String}`;
+          } catch (e) {
+            console.error("Error converting artwork base64:", e);
           }
-          document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
         }
       },
       onError: function(err) {
