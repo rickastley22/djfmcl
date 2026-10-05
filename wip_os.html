@@ -251,7 +251,7 @@
     <div class="content-area" id="screen-content">
       <ul class="view-list" id="file-tree"></ul>
       <div class="album-art-box">
-        <img id="album-art" src="" alt="ARTWORK">
+        <img id="album-art" src="dj_fmcl.png" alt="ARTWORK">
       </div>
     </div>
 
@@ -276,6 +276,7 @@
 <script>
   const PUBLIC_DRIVE_LINK = "https://drive.google.com/drive/folders/1a8Z6mxESX7ynvjqUEeKjTpb3zN5czw-v?usp=sharing";
   const DRIVE_API_KEY = "AIzaSyBQCo54xkbkHqFwqGHnGFzgSSWAC22S_9c";
+  const DEFAULT_PLACEHOLDER_ART = "dj_fmcl.png";
 
   function extractFolderId(link) {
     const match = link.match(/\/folders\/([a-zA-Z0-9_-]+)/);
@@ -486,6 +487,9 @@
 
     document.getElementById('track-title').innerText = item.name.toUpperCase();
     document.getElementById('track-artist').innerText = "STREAMING...";
+    
+    // Reset to placeholder artwork prior to reading new tags
+    document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
 
     jsmediatags.read(streamUrl, {
       onSuccess: function(tag) {
@@ -500,10 +504,13 @@
             base64String += String.fromCharCode(tags.picture.data[i]);
           }
           document.getElementById('album-art').src = `data:${tags.picture.format};base64,${window.btoa(base64String)}`;
+        } else {
+          document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
         }
       },
       onError: function() {
         document.getElementById('track-artist').innerText = "ID3 READ FAILED";
+        document.getElementById('album-art').src = DEFAULT_PLACEHOLDER_ART;
       }
     });
   }
