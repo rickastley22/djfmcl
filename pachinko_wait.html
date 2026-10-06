@@ -445,7 +445,7 @@
   .credit-board { display: flex; justify-content: space-between; background: #111; border: 1px solid #ff00ff; padding: 2px 4px; margin-bottom: 4px; font-size: 5px; }
   .credit-box { color: #00ff00; }
   .pachinko-track-title { font-size: 5px; color: #00ffff; min-height: 10px; margin-bottom: 3px; }
-  .spin-btn { width: 100%; padding: 5px; font-size: 6px; color: #000; background: #00ff00; border: 1.5px solid #fff; cursor: pointer; }
+  .spin-btn { width: 100%; padding: 5px; font-size: 6px; color: #000; background: #00ff00; border: 1.5px solid #fff; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .jackpot-banner { display: none; font-size: 6px; color: #ffff00; background: #ff0000; padding: 2px; border: 1px solid #fff; margin-bottom: 2px; }
   #effects-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99; }
 
@@ -916,6 +916,15 @@
   // User interactions unlock Web Audio & Silent Mode bypass
   window.addEventListener('touchstart', unlockIosSilentMode, { passive: true });
   window.addEventListener('click', unlockIosSilentMode, { passive: true });
+
+  // Add responsive iOS touch handler for Pachinko spin button
+  const spinBtnEl = document.getElementById('spin-button');
+  if (spinBtnEl) {
+    spinBtnEl.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      spinPachinko();
+    }, { passive: false });
+  }
 
   // TIME, LOOPING & ACCELERATION STATE
   let timeMins = 330; // Starts at 05:30 AM (330 minutes)
@@ -1630,7 +1639,7 @@
     initAudioContext();
     let noteIndex = 0;
     const notes = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
-    const totalSongNotes = 32; // Full album length track playback
+    const totalSongNotes = 32;
 
     stopSynthMusic();
 
@@ -1648,9 +1657,10 @@
       osc.stop(audioCtx.currentTime + 0.25);
       noteIndex++;
 
-      if (noteIndex >= totalSongNotes) {
+      // In credits mode, trigger onTrackFinished when loop hits max notes
+      if (onTrackFinished && noteIndex >= totalSongNotes) {
         stopSynthMusic();
-        if (onTrackFinished) onTrackFinished();
+        onTrackFinished();
       }
     }, 200);
   }
@@ -1820,6 +1830,60 @@
     }
   }
 
+  // PACHINKO PAYOUT COIN CASCADE ANIMATION FOR IOS / CANVAS
+  function triggerCoinCascade() {
+    const canvas = document.getElementById('effects-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+
+    const coins = [];
+    for (let i = 0; i < 35; i++) {
+      coins.push({
+        x: canvas.width / 2 + (Math.random() * 40 - 20),
+        y: canvas.height / 3,
+        vx: (Math.random() - 0.5) * 6,
+        vy: -Math.random() * 5 - 2,
+        gravity: 0.35,
+        size: Math.random() * 4 + 4,
+        color: ['#ffd700', '#ffea00', '#ffaa00'][Math.floor(Math.random() * 3)],
+        life: 60 + Math.random() * 20
+      });
+    }
+
+    function animateCoins() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let alive = false;
+
+      coins.forEach(c => {
+        if (c.life > 0) {
+          alive = true;
+          c.x += c.vx;
+          c.y += c.vy;
+          c.vy += c.gravity;
+          c.life--;
+
+          ctx.fillStyle = c.color;
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      });
+
+      if (alive) {
+        requestAnimationFrame(animateCoins);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    animateCoins();
+  }
+
   // PACHINKO GAME MECHANICS
   function spinPachinko() {
     if (totalCredits < 50) return;
@@ -1864,6 +1928,9 @@
         totalCredits += payout;
         document.getElementById('payout-count').innerText = formatDigits(payout);
         creditEl.innerText = formatDigits(totalCredits);
+
+        // Trigger gold coin cascade on wins
+        triggerCoinCascade();
 
         if (unlockedTrackCount < albumTracks.length) {
           unlockedTrackCount++;
