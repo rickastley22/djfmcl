@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Early Morning Queue - Japanese Pachinko Edition</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  :root {
+    --gc-purple: #4b3b82;
+    --gc-purple-dark: #2f2356;
+    --gc-border: #1d1538;
+    --ds-screen-bg: #d8ded3;
+    --pixel-dark: #101210;
+    --pixel-gray: #7a8277;
+    --pixel-light: #f0f4ed;
+    --nes-red: #d1121d;
+    --nes-dark-red: #8f070e;
+    --neon-pink: #ff00ff;
+    --neon-lime: #00ff00;
+    --neon-cyan: #00ffff;
+    --neon-yellow: #ffff00;
+  }
+
+  * { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    user-select: none; 
+    font-family: 'Press Start 2P', monospace; 
+    image-rendering: pixelated;
+  }
+
+  body {
+    background-color: #08070d;
+    color: var(--pixel-dark);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    overflow: hidden;
+  }
+
+  #ds-console {
+    width: 450px;
+    background: linear-gradient(180deg, var(--gc-purple) 0%, var(--gc-purple-dark) 100%);
+    border: 4px solid var(--gc-border);
+    border-radius: 28px;
+    padding: 22px 18px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.8), inset 0 2px 4px rgba(255,255,255,0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+
+  .speaker-holes {
+    position: absolute;
+    top: 100px;
+    display: grid;
+    grid-template-columns: repeat(3, 4px);
+    gap: 4px;
+  }
+  .speaker-holes.left { left: 12px; }
+  .speaker-holes.right { right: 12px; }
+  .hole { width: 4px; height: 4px; background: #1c1533; border-radius: 50%; box-shadow: inset 0 1px 1px #000; }
+
+  .ds-hinge {
+    width: 100%;
+    height: 18px;
+    background: linear-gradient(180deg, #221a3a 0%, #110d1f 100%);
+    margin: 10px 0;
+    border-radius: 9px;
+    border-top: 1px solid #5a4b91;
+    border-bottom: 1px solid #000;
+  }
+
+  .ds-screen-bezel {
+    width: 384px;
+    height: 280px;
+    background: #181424;
+    border: 3px solid #2d2642;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+
+  .ds-screen {
+    width: 356px;
+    height: 256px;
+    background: var(--ds-screen-bg);
+    border: 2px solid #000;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Screen Transition Fade Overlay */
+  .fade-overlay {
+    position: absolute;
+    inset: 0;
+    background: #ffffff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 300;
+    transition: opacity 1.5s ease-in-out;
+  }
+  .fade-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .crt-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+    background-size: 100% 3px, 3px 100%;
+    box-shadow: inset 0 0 18px rgba(0,0,0,0.6);
+  }
+
+  .crt-overlay::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    inset: 0;
+    background: rgba(18, 16, 16, 0.03);
+    opacity: 0;
+    pointer-events: none;
+    animation: flicker 0.15s infinite;
+  }
+
+  @keyframes flicker {
+    0% { opacity: 0.27; }
+    50% { opacity: 0.18; }
+    100% { opacity: 0.25; }
+  }
+
+  .ds-hud {
+    position: absolute;
+    top: 6px; left: 8px; right: 8px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 6px;
+    color: #fff;
+    text-shadow: 1px 1px #000;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .hud-badge {
+    background: rgba(0,0,0,0.85);
+    padding: 3px 5px;
+    border: 1px solid #555;
+    border-radius: 2px;
+  }
+
+  #bottom-screen {
+    background: #e6eae1;
+    background-image: 
+      linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
+    background-size: 8px 8px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .status-bar-header {
+    height: 22px;
+    background: #c8d0c0;
+    border-bottom: 2px solid #98a290;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 6px;
+    font-size: 7px;
+    color: #222;
+    flex-shrink: 0;
+  }
+
+  .provider-tag {
+    color: #000;
+    font-weight: bold;
+  }
+
+  .ticker-container {
+    height: 24px;
+    background: #111;
+    border-top: 2px solid #000;
+    border-bottom: 2px solid #000;
+    margin-top: 6px;
+    overflow: hidden;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .ticker-text {
+    display: inline-block;
+    padding-left: 100%;
+    animation: ticker 12s linear infinite;
+    font-size: 7px;
+    color: #00ff00;
+    text-shadow: 0 0 4px #00ff00;
+  }
+
+  @keyframes ticker {
+    0% { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(-100%, 0, 0); }
+  }
+
+  #phone-homescreen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 10px;
+    position: relative;
+  }
+
+  .app-dock {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: #b5c0ad;
+    padding: 6px 4px;
+    border: 2px solid #6b7563;
+    box-shadow: inset 2px 2px 0 #dbe3d3, inset -2px -2px 0 #525a4c;
+  }
+
+  .app-icon {
+    width: 48px;
+    height: 48px;
+    background: #f0f4ed;
+    border: 2px solid #222;
+    box-shadow: inset -2px -2px 0 #999, 2px 2px 0 #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  .app-icon:active {
+    box-shadow: inset 2px 2px 0 #000;
+    transform: translate(1px, 1px);
+  }
+
+  .app-icon-label {
+    font-size: 5px;
+    color: #000;
+    margin-top: 2px;
+    text-align: center;
+  }
+
+  .app-view {
+    position: absolute;
+    top: 22px; left: 0; right: 0; bottom: 0;
+    background: #d0d8c8;
+    display: none;
+    flex-direction: column;
+    z-index: 20;
+  }
+
+  .ds-app-header {
+    height: 24px;
+    background: #8e9886;
+    border-bottom: 2px solid #4a5244;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .ds-back-btn {
+    font-size: 7px;
+    background: #e0e8d8;
+    border: 1.5px solid #000;
+    padding: 2px 4px;
+    cursor: pointer;
+    color: #000;
+  }
+
+  .ds-title { font-size: 8px; color: #000; }
+
+  #messages-main-view { display: flex; flex-direction: column; height: 100%; }
+  .chat-list { flex: 1; overflow-y: auto; background: #e0e8d8; }
+  .chat-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #a0a898;
+    cursor: pointer;
+  }
+  .chat-item:hover { background: #cbd4c3; }
+  .avatar { font-size: 16px; margin-right: 8px; flex-shrink: 0; }
+  .chat-details { flex: 1; overflow: hidden; }
+  .chat-row-1 { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .chat-name { font-size: 7px; font-weight: bold; color: #000; }
+  .chat-time { font-size: 6px; color: #555; }
+  .chat-preview { font-size: 7px; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  #thread-view {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    flex-direction: column;
+    background: #d8ded3;
+    z-index: 30;
+  }
+  .message-bubbles {
+    flex: 1;
+    padding: 8px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .bubble { max-width: 80%; padding: 6px; border: 1.5px solid #000; font-size: 7px; line-height: 1.3; }
+  .bubble.them { background: #fff; color: #000; align-self: flex-start; }
+  .bubble.me { background: #a2c488; color: #000; align-self: flex-end; }
+  .chat-input-area { padding: 6px; background: #b0b8a6; border-top: 2px solid #606856; flex-shrink: 0; }
+  .tap-send-btn {
+    width: 100%;
+    padding: 6px;
+    background: #f0f4ed;
+    border: 2px solid #000;
+    font-size: 7px;
+    cursor: pointer;
+    color: #000;
+  }
+
+  .player-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background: #c2caa8;
+    text-align: center;
+  }
+  .album-art {
+    width: 70px; height: 70px;
+    border: 2px solid #000;
+    background: #8e9878;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin-bottom: 8px;
+  }
+  .track-title { font-size: 8px; color: #000; margin-bottom: 4px; }
+  .artist-name { font-size: 7px; color: #444; margin-bottom: 8px; }
+  .playing-status { font-size: 7px; color: #1e520a; min-height: 12px; margin-bottom: 8px; }
+  .player-controls-row { display: flex; gap: 12px; align-items: center; }
+  .media-btn { background: #e0e8d8; border: 1.5px solid #000; padding: 4px 8px; font-size: 10px; cursor: pointer; }
+  .media-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #app-pachinko { background: #050014; }
+  .arcade-container {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 2px;
+  }
+  .arcade-shell {
+    position: relative; padding: 4px; background: #220044; border: 2px solid #00ffff; width: 338px;
+  }
+  .led-ring {
+    position: absolute; inset: 2px; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); pointer-events: none; z-index: 10;
+  }
+  .led-bulb { width: 4px; height: 4px; margin: auto; border-radius: 50%; background: #222; border: 1px solid #fff; }
+  .led-ring.idle .led-bulb { animation: retroFlash 0.4s infinite alternate; }
+  .led-ring.idle .led-bulb:nth-child(odd) { animation-delay: 0.2s; }
+  @keyframes retroFlash {
+    0% { background: var(--neon-pink); box-shadow: 0 0 4px var(--neon-pink); }
+    100% { background: var(--neon-cyan); box-shadow: 0 0 4px var(--neon-cyan); }
+  }
+  .led-ring.spinning .led-bulb { animation: strobe 0.1s infinite; }
+  @keyframes strobe {
+    0% { background: #ff0000; } 33% { background: #00ff00; } 66% { background: #0000ff; } 100% { background: #ffff00; }
+  }
+  .cabinet { background: #000; border: 2px solid #00ff00; padding: 4px; text-align: center; }
+  .marquee-text { font-size: 6px; color: #ffff00; margin-bottom: 4px; }
+  .playfield-circle {
+    position: relative; width: 80px; height: 80px; margin: 0 auto 4px auto;
+    border-radius: 50%; background: #110022; border: 2px solid #00ffff;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .pin-grid { position: absolute; inset: 0; background-image: radial-gradient(#ffff00 20%, transparent 21%); background-size: 8px 8px; opacity: 0.4; }
+  .slot-window { position: relative; z-index: 2; display: flex; gap: 2px; background: #111; padding: 2px; border: 1px solid #ffff00; }
+  .reel { width: 22px; height: 22px; background: #000; border: 1px solid #ff00ff; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .reel svg { width: 100%; height: 100%; }
+  .blur-spin { animation: reelBlur 0.1s infinite linear; }
+  @keyframes reelBlur {
+    0% { transform: translateY(-2px); filter: blur(2px); }
+    100% { transform: translateY(2px); filter: blur(2px); }
+  }
+  .credit-board { display: flex; justify-content: space-between; background: #111; border: 1px solid #ff00ff; padding: 2px 4px; margin-bottom: 4px; font-size: 6px; }
+  .credit-box { color: #00ff00; }
+  .pachinko-track-title { font-size: 6px; color: #00ffff; min-height: 12px; margin-bottom: 4px; }
+  .spin-btn { width: 100%; padding: 6px; font-size: 7px; color: #000; background: #00ff00; border: 1.5px solid #fff; cursor: pointer; }
+  .spin-btn:disabled { opacity: 0.5; }
+  .jackpot-banner { display: none; font-size: 7px; color: #ffff00; background: #ff0000; padding: 2px; border: 1px solid #fff; margin-bottom: 2px; }
+  #effects-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99; }
+
+  /* HORSE BETTING APP STYLES */
+  #app-horse { background: #0d260f; color: #fff; }
+  .horse-container { flex: 1; display: flex; flex-direction: column; padding: 6px; gap: 6px; }
+  .horse-track { height: 90px; background: #261609; border: 2px solid #543717; position: relative; overflow: hidden; padding: 4px; }
+  .lane { height: 18px; border-bottom: 1px dashed #6b4d2a; position: relative; }
+  .horse-sprite { position: absolute; left: 0; top: 1px; font-size: 12px; transition: left 0.1s linear; }
+  .finish-line { position: absolute; right: 15px; top: 0; bottom: 0; width: 4px; background: repeating-linear-gradient(0deg, #fff, #fff 4px, #000 4px, #000 8px); }
+  .odds-list { background: #18381b; border: 1.5px solid #2d5e31; padding: 4px; font-size: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .odds-row { display: flex; justify-content: space-between; align-items: center; padding: 2px; background: #102612; }
+  .odds-row.selected { border: 1px solid #00ff00; background: #1d4521; }
+  .bet-controls { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+  .horse-btn { background: #2e7335; border: 1px solid #00ff00; color: #fff; padding: 4px 6px; font-size: 6px; cursor: pointer; }
+
+  /* TAMAGOTCHI APP STYLES */
+  #app-tama { background: #1a0210; color: #fff; }
+  .tama-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px; }
+  .tama-shell { width: 180px; height: 180px; background: #ff69b4; border: 4px solid #cc0066; border-radius: 50% 50% 45% 45%; padding: 16px; display: flex; flex-direction: column; align-items: center; box-shadow: inset -4px -4px 0 rgba(0,0,0,0.3); }
+  .tama-screen { width: 110px; height: 90px; background: #a2b88f; border: 3px solid #333; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 4px; position: relative; box-shadow: inset 2px 2px 0 rgba(0,0,0,0.2); }
+  .tama-status { font-size: 5px; color: #111; display: flex; justify-content: space-between; width: 100%; }
+  .tama-pet { font-size: 28px; margin-top: 4px; }
+  .tama-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .tama-btn { width: 22px; height: 22px; background: #ffff00; border: 2px solid #333; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; cursor: pointer; box-shadow: 0 2px 0 #000; }
+  .tama-btn:active { transform: translateY(2px); box-shadow: none; }
+
+  /* POPUP NOTIFICATION STYLES */
+  .popup-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+  }
+  .popup-box {
+    width: 260px;
+    background: #f0f4ed;
+    border: 3px solid #000;
+    box-shadow: 4px 4px 0 #000;
+    padding: 12px;
+    text-align: center;
+  }
+  .popup-title { font-size: 8px; color: #d1121d; margin-bottom: 8px; font-weight: bold; }
+  .popup-body { font-size: 6.5px; color: #000; line-height: 1.4; margin-bottom: 12px; }
+  .popup-btn {
+    background: #4b3b82; color: #fff; border: 2px solid #000; padding: 6px 12px; font-size: 7px; cursor: pointer;
+  }
+
+  /* CONGRATULATIONS & ROLLING CREDITS STYLES */
+  #congrats-screen {
+    position: absolute;
+    inset: 0;
+    background: #d8ded3;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 150;
+    padding: 10px;
+    overflow: hidden;
+  }
+  .congrats-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 2s ease-out;
+  }
+  .congrats-title { font-size: 11px; color: #222; text-shadow: 1px 1px #fff; margin-bottom: 15px; text-align: center; }
+
+  .credits-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+  }
+  .credits-scroll {
+    position: absolute;
+    top: 100%;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+  .credits-scroll.rolling {
+    animation: scrollCredits 80s linear infinite;
+  }
+  @keyframes scrollCredits {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-100%); }
+  }
+  .credit-item { display: flex; flex-direction: column; gap: 3px; }
+  .credit-role { font-size: 5px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .credit-name { font-size: 6.5px; color: #111; font-weight: bold; }
+
+  /* NES STYLE 2-BUTTON CONTROLS */
+  .ds-controls { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 0 16px; }
+  .d-pad { width: 54px; height: 54px; position: relative; }
+  .d-pad div { position: absolute; background: #181424; border: 1px solid #000; }
+  .d-up { top: 0; left: 18px; width: 18px; height: 20px; border-radius: 2px 2px 0 0; }
+  .d-down { bottom: 0; left: 18px; width: 18px; height: 20px; border-radius: 0 0 2px 2px; }
+  .d-left { top: 18px; left: 0; width: 20px; height: 18px; border-radius: 2px 0 0 2px; }
+  .d-right { top: 18px; right: 0; width: 20px; height: 18px; border-radius: 0 2px 2px 0; }
+  .d-center { top: 18px; left: 18px; width: 18px; height: 18px; background: #181424; }
+
+  .nes-buttons {
+    display: flex;
+    gap: 12px;
+    transform: none;
+    background: #2d2642;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 2px solid #1d1538;
+  }
+  .btn-nes {
+    width: 26px;
+    height: 26px;
+    background: linear-gradient(180deg, var(--nes-red) 0%, var(--nes-dark-red) 100%);
+    border-radius: 50%;
+    border: 2px solid #000;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 0 #000;
+    color: #fff;
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .btn-nes:active {
+    transform: translateY(2px);
+    box-shadow: inset 0 1px 1px rgba(0,0,0,0.4);
+  }
+</style>
+</head>
+<body>
+
+<div id="ds-console">
+  <div class="speaker-holes left"><div class="hole"></div><div class="hole"></div><div class="hole"></div><div class="hole"></div><div class="hole"></div><div class="hole"></div></div>
+  <div class="speaker-holes right"><div class="hole"></div><div class="hole"></div><div class="hole"></div><div class="hole"></div><div class="hole"></div><div class="hole"></div></div>
+
+  <!-- TOP SCREEN (Street / Picnic Canvas View) -->
+  <div class="ds-screen-bezel">
+    <div class="ds-screen" id="top-screen">
+      <div class="fade-overlay" id="top-fade"></div>
+      <div class="crt-overlay"></div>
+      <div class="ds-hud" id="top-hud">
+        <div class="hud-badge" id="hud-time">05:30 AM</div>
+        <div class="hud-badge" id="hud-loop">DAY 1</div>
+        <div class="hud-badge" id="hud-weather">❄️ Cold 3°C</div>
+      </div>
+      <canvas id="street-canvas" width="356" height="256"></canvas>
+    </div>
+  </div>
+
+  <div class="ds-hinge"></div>
+
+  <!-- BOTTOM SCREEN (Touch Menu & Apps) -->
+  <div class="ds-screen-bezel">
+    <div class="ds-screen" id="bottom-screen">
+      <div class="fade-overlay" id="bottom-fade"></div>
+      <div class="crt-overlay"></div>
+      
+      <!-- DAY 7 NOTIFICATION POPUP -->
+      <div class="popup-overlay" id="popup-overlay">
+        <div class="popup-box">
+          <div class="popup-title">📬 NEW MESSAGE!</div>
+          <div class="popup-body">You received a message from <b>evian bottled water</b> asking you to join for a nice picnic!</div>
+          <button class="popup-btn" onclick="acceptPicnicPopup()">OPEN CHAT</button>
+        </div>
+      </div>
+
+      <!-- FINAL CONGRATULATIONS & ROLL CREDITS SCREEN -->
+      <div id="congrats-screen">
+        <div class="congrats-content" id="congrats-content">
+          <div class="congrats-title">CONGRATULATIONS</div>
+          <button class="popup-btn" id="congrats-album-btn" style="display: none;" onclick="startAlbumAndCredits()">wanna hear my new album?</button>
+        </div>
+        <div class="credits-container">
+          <div class="credits-scroll" id="credits-scroll"></div>
+        </div>
+      </div>
+
+      <div class="status-bar-header">
+        <span class="provider-tag">bocomo 2g</span>
+        <span id="phone-clock">05:30</span>
+        <span>📶 🔋</span>
+      </div>
+
+      <div class="ticker-container">
+        <div class="ticker-text">
+          ★ KING PACHINKO ★ OPEN 08:00 AM - 10:00 PM ★ SUPER FEVER RUSH ★ WIN BIG JACKPOTS ★ BEST CRANE & SLOT SELECTION ★
+        </div>
+      </div>
+
+      <div id="phone-homescreen">
+        <div class="app-dock">
+          <div class="app-icon" onclick="openApp('messages')" title="Messages">
+            <div>💬</div>
+            <div class="app-icon-label">CHAT</div>
+          </div>
+          <div class="app-icon" onclick="openApp('pachinko')" title="Pachinko">
+            <div>🎰</div>
+            <div class="app-icon-label">PACHINKO</div>
+          </div>
+          <div class="app-icon" onclick="openApp('horse')" title="Derby Betting">
+            <div>🏇</div>
+            <div class="app-icon-label">DERBY</div>
+          </div>
+          <div class="app-icon" onclick="openApp('tama')" title="Tamagotchi">
+            <div>🥚</div>
+            <div class="app-icon-label">TAMA</div>
+          </div>
+          <div class="app-icon" onclick="openApp('music')" title="Music Player">
+            <div>🎵</div>
+            <div class="app-icon-label">MUSIC</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MESSAGES SUBMENU -->
+      <div class="app-view" id="app-messages">
+        <div id="messages-main-view">
+          <div class="ds-app-header">
+            <span class="ds-back-btn" onclick="closeApp()">‹ HOME</span>
+            <span class="ds-title">MESSAGES</span>
+            <span style="width: 25px;"></span>
+          </div>
+
+          <div id="chat-list-view" class="chat-list">
+            <div class="chat-item" id="chat-item-evian" style="display: none;" onclick="openThread('evian')">
+              <div class="avatar">💧</div>
+              <div class="chat-details">
+                <div class="chat-row-1">
+                  <span class="chat-name">evian bottled water</span>
+                  <span class="chat-time" id="time-evian">12:00</span>
+                </div>
+                <div class="chat-preview" id="prev-evian">Hey! Would you like to join...</div>
+              </div>
+            </div>
+
+            <div class="chat-item" onclick="openThread('djfmcl')">
+              <div class="avatar">🎮</div>
+              <div class="chat-details">
+                <div class="chat-row-1">
+                  <span class="chat-name">djfmcl</span>
+                  <span class="chat-time" id="time-djfmcl">05:30</span>
+                </div>
+                <div class="chat-preview" id="prev-djfmcl">u outside already?</div>
+              </div>
+            </div>
+
+            <div class="chat-item" onclick="openThread('mom')">
+              <div class="avatar">👩</div>
+              <div class="chat-details">
+                <div class="chat-row-1">
+                  <span class="chat-name">Mom</span>
+                  <span class="chat-time" id="time-mom">05:28</span>
+                </div>
+                <div class="chat-preview" id="prev-mom">Are you up yet? Don't forget...</div>
+              </div>
+            </div>
+
+            <div class="chat-item" onclick="openThread('yucho')">
+              <div class="avatar">🏦</div>
+              <div class="chat-details">
+                <div class="chat-row-1">
+                  <span class="chat-name">ゆーちょサポート</span>
+                  <span class="chat-time" id="time-yucho">05:15</span>
+                </div>
+                <div class="chat-preview" id="prev-yucho">【ゆうちょ銀行】各種お手続きのご案内...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="thread-view">
+          <div class="ds-app-header">
+            <span class="ds-back-btn" onclick="closeThread()">‹ CHATS</span>
+            <span class="ds-title" id="thread-title">djfmcl</span>
+            <span style="width: 25px;"></span>
+          </div>
+          <div class="message-bubbles" id="message-bubbles"></div>
+          <div class="chat-input-area">
+            <button class="tap-send-btn" id="chat-send-btn" onclick="sendNextMessage()">TAP TO SEND MESSAGE</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PACHINKO APP SUBMENU -->
+      <div class="app-view" id="app-pachinko">
+        <div class="ds-app-header">
+          <span class="ds-back-btn" onclick="closeApp()">‹ HOME</span>
+          <span class="ds-title">POCKET PACHINKO</span>
+          <span style="width: 25px;"></span>
+        </div>
+        <div class="arcade-container">
+          <canvas id="effects-canvas"></canvas>
+          <div class="arcade-shell">
+            <div class="led-ring idle" id="led-ring">
+              <span class="led-bulb"></span><span class="led-bulb"></span><span class="led-bulb"></span><span class="led-bulb"></span>
+              <span class="led-bulb"></span><span class="led-bulb"></span><span class="led-bulb"></span><span class="led-bulb"></span>
+              <span class="led-bulb"></span><span class="led-bulb"></span><span class="led-bulb"></span><span class="led-bulb"></span>
+            </div>
+
+            <div class="cabinet">
+              <div id="jackpot-header" class="jackpot-banner">★ 大当たり FEVER 777 ★</div>
+              <div class="marquee-text">▼ KING PACHINKO ARCHIVE ▼</div>
+
+              <div class="playfield-circle">
+                <div class="pin-grid"></div>
+                <div class="slot-window">
+                  <div class="reel" id="reel-1">❓</div>
+                  <div class="reel" id="reel-2">❓</div>
+                  <div class="reel" id="reel-3">❓</div>
+                </div>
+              </div>
+
+              <div class="credit-board">
+                <div class="credit-box">CREDIT: <span id="credit-count">01000</span></div>
+                <div class="credit-box">WIN: <span id="payout-count">00000</span></div>
+              </div>
+
+              <div class="pachinko-track-title" id="pachinko-track-title">PRESS SPIN TO UNLOCK TRACKS</div>
+              <button class="spin-btn" id="spin-button" onclick="spinPachinko()">★ SPIN NOW ★</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HORSE BETTING SUBMENU -->
+      <div class="app-view" id="app-horse">
+        <div class="ds-app-header">
+          <span class="ds-back-btn" onclick="closeApp()">‹ HOME</span>
+          <span class="ds-title">RETRO DERBY 1999</span>
+          <span style="width: 25px;"></span>
+        </div>
+        <div class="horse-container">
+          <div class="horse-track">
+            <div class="finish-line"></div>
+            <div class="lane"><div class="horse-sprite" id="h1">🏇1</div></div>
+            <div class="lane"><div class="horse-sprite" id="h2">🏇2</div></div>
+            <div class="lane"><div class="horse-sprite" id="h3">🏇3</div></div>
+            <div class="lane"><div class="horse-sprite" id="h4">🏇4</div></div>
+          </div>
+          <div class="odds-list">
+            <div class="odds-row selected" id="row-1" onclick="selectHorse(1)">
+              <span>#1 THUNDER BOLT</span><span>3.5x</span>
+            </div>
+            <div class="odds-row" id="row-2" onclick="selectHorse(2)">
+              <span>#2 HYPER SPEED</span><span>2.1x</span>
+            </div>
+            <div class="odds-row" id="row-3" onclick="selectHorse(3)">
+              <span>#3 SHADOW FAX</span><span>5.0x</span>
+            </div>
+            <div class="odds-row" id="row-4" onclick="selectHorse(4)">
+              <span>#4 LUCKY STAR</span><span>8.5x</span>
+            </div>
+          </div>
+          <div class="bet-controls">
+            <span style="font-size: 6px;" id="horse-status">BET 100 CREDITS</span>
+            <button class="horse-btn" id="race-btn" onclick="startHorseRace()">START RACE</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAMAGOTCHI SUBMENU -->
+      <div class="app-view" id="app-tama">
+        <div class="ds-app-header">
+          <span class="ds-back-btn" onclick="closeApp()">‹ HOME</span>
+          <span class="ds-title">POCKET PET</span>
+          <span style="width: 25px;"></span>
+        </div>
+        <div class="tama-container">
+          <div class="tama-shell">
+            <div class="tama-screen">
+              <div class="tama-status">
+                <span id="tama-happy">HAPPY: ❤️❤️❤️</span>
+                <span id="tama-food">HUNGER: 🍔🍔🍔</span>
+              </div>
+              <div class="tama-pet" id="tama-pet">👾</div>
+              <div style="font-size: 5px; color:#222;" id="tama-msg">PET IS HAPPY</div>
+            </div>
+            <div class="tama-actions">
+              <div class="tama-btn" onclick="feedTama()" title="Feed">🍔</div>
+              <div class="tama-btn" onclick="playTama()" title="Play">🎾</div>
+              <div class="tama-btn" onclick="cleanTama()" title="Clean">🧹</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MP3 PLAYER SUBMENU -->
+      <div class="app-view" id="app-music">
+        <div class="ds-app-header">
+          <span class="ds-back-btn" id="music-back-btn" onclick="closeApp()">‹ HOME</span>
+          <span class="ds-title">SOUND PLAYER</span>
+          <span style="width: 25px;"></span>
+        </div>
+        <div class="player-body">
+          <div class="album-art" id="album-art">🔒</div>
+          <div class="track-title" id="track-title">Tracks Locked</div>
+          <div class="artist-name" id="track-artist">Play pachinko to unlock songs</div>
+          <div class="playing-status" id="playing-status"></div>
+          <div class="player-controls-row">
+            <button class="media-btn" id="btn-prev-track" onclick="prevTrack()" disabled>⏮️</button>
+            <button class="media-btn" style="font-size:12px;" onclick="toggleMusic()" id="play-pause-btn" disabled>▶️</button>
+            <button class="media-btn" id="btn-next-track" onclick="nextTrack()" disabled>⏭️</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Physical NES Controls Layout -->
+  <div class="ds-controls">
+    <div class="d-pad">
+      <div class="d-up"></div><div class="d-down"></div>
+      <div class="d-left"></div><div class="d-right"></div>
+      <div class="d-center"></div>
+    </div>
+    <div class="nes-buttons">
+      <div class="btn-nes" id="btn-b">B</div>
+      <div class="btn-nes" id="btn-a" onclick="triggerLineJump()">A</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // TIME, LOOPING & ACCELERATION STATE
+  let timeMins = 330; // Starts at 05:30 AM (330 minutes)
+  const openTimeMins = 480;   // 08:00 AM (480 mins)
+  const closeTimeMins = 1320; // 10:00 PM (1320 mins)
+  let dayCount = 1;
+  let currentSpeedMultiplier = 1; // Overall speed multiplier increases each day
+  let isEnding = false;
+  let picnicTriggered = false;
+
+  let activeThread = null;
+  let isRaining = false;
+  let isMusicPlaying = false;
+  let audioSynthLoop = null;
+  let currentTrackIdx = 0;
+  let unlockedTrackCount = 0;
+  let animTick = 0;
+
+  // Jump animation offset for crowd
+  let crowdJumpY = 0;
+  let jumpVel = 0;
+
+  const albumTracks = [
+    { title: "01. Dawn Queue Loop", artist: "Pachinko Dreams OST", icon: "🎧" },
+    { title: "02. Neon Vapors", artist: "Pachinko Dreams OST", icon: "🌃" },
+    { title: "03. Shivering In Line", artist: "Pachinko Dreams OST", icon: "❄️" },
+    { title: "04. Fever Time Anticipation", artist: "Pachinko Dreams OST", icon: "🎰" },
+    { title: "05. 8:00 AM Doors Open", artist: "Pachinko Dreams OST", icon: "🌅" }
+  ];
+
+  const threads = {
+    'evian': {
+      name: 'evian bottled water',
+      index: 0,
+      messages: [
+        { sender: 'them', text: 'Hey! The weather is lovely today. Would you like to join us for a nice picnic in the park?' },
+        { sender: 'me', text: 'That sounds wonderfully refreshing. I would love to meet up!' },
+        { sender: 'them', text: 'Awesome! We brought sandwiches, fruits, and cold drinks.' },
+        { sender: 'me', text: 'I am on my way right now. See you in a bit!' },
+        { sender: 'them', text: 'See you soon! 🌿☀️' }
+      ]
+    },
+    'djfmcl': {
+      name: 'djfmcl',
+      index: 0,
+      messages: [
+        { sender: 'them', text: 'u outside already?' },
+        { sender: 'me', text: 'yeah freezing in line lol' },
+        { sender: 'them', text: 'absolute degenerate. save me a spot?' },
+        { sender: 'me', text: 'line is already forming no way' },
+        { sender: 'them', text: 'gl hit the jackpot!' },
+        { sender: 'me', text: 'bro my hands are literally numb right now' },
+        { sender: 'them', text: 'that unit 4 machine is gonna pay for ur medical bill' },
+        { sender: 'me', text: 'worth it if I trigger super fever first spin' },
+        { sender: 'them', text: 'keep coping, see u at 8' }
+      ]
+    },
+    'mom': {
+      name: 'Mom',
+      index: 0,
+      messages: [
+        { sender: 'them', text: 'Are you up yet? Don’t forget breakfast.' },
+        { sender: 'me', text: 'Up early taking care of stuff.' },
+        { sender: 'them', text: 'Okay dear, stay warm today.' },
+        { sender: 'me', text: 'Will do mom!' },
+        { sender: 'them', text: 'Are you standing in that line again?' },
+        { sender: 'me', text: '...it is very important personal business' },
+        { sender: 'them', text: 'Please buy some hot tea at least...' }
+      ]
+    },
+    'yucho': {
+      name: 'ゆーちょサポート',
+      index: 0,
+      messages: [
+        { sender: 'them', text: '【ゆうちょ銀行】各種お手続きのご案内。' },
+        { sender: 'me', text: 'sometimes I feel like I am just standing in line waiting for a life that already passed me by' },
+        { sender: 'them', text: '恐れ入ります。お取引内容のご確認、または口座番号の入力をお間違えでしょうか？' },
+        { sender: 'me', text: 'does true happiness exist inside the machine or am I chasing digital ghosts?' },
+        { sender: 'them', text: '申し訳ございません。お問い合わせの意味が認識できませんでした。オペレーターに繋ぎますか？' },
+        { sender: 'me', text: 'no operator can fix what is broken inside me' },
+        { sender: 'them', text: 'システムエラー: 該当する窓口が見つかりません。最寄りの郵便局へお越しください。' }
+      ]
+    }
+  };
+
+  function advanceTime(mins) {
+    if (isEnding) return; // Time stops completely in ending state
+
+    timeMins += mins;
+
+    // Check Parlor Closure -> Loop to Next Day Line
+    if (timeMins >= closeTimeMins) {
+      timeMins = 330; // Reset back to 05:30 AM next morning
+      dayCount++;
+      currentSpeedMultiplier *= 2; // Overall speed increases each day (applies to outside queue & inside parlor)
+      document.getElementById('hud-loop').innerText = `DAY ${dayCount}`;
+
+      // Check for Day 7 Trigger
+      if (dayCount >= 7 && !picnicTriggered) {
+        triggerDay7Popup();
+      }
+    }
+
+    const hrs = Math.floor(timeMins / 60);
+    const m = timeMins % 60;
+    const period = hrs >= 12 ? 'PM' : 'AM';
+    const displayHrs = hrs % 12 === 0 ? 12 : hrs % 12;
+    const timeStr = `0${displayHrs}`.slice(-2) + ':' + `0${m}`.slice(-2);
+    
+    document.getElementById('hud-time').innerText = `${timeStr} ${period}`;
+    document.getElementById('phone-clock').innerText = `0${hrs}`.slice(-2) + ':' + `0${m}`.slice(-2);
+
+    if (Math.random() < 0.15) {
+      isRaining = !isRaining;
+      document.getElementById('hud-weather').innerText = isRaining ? '🌧️ Rain 3°C' : '❄ Cold 4°C';
+    }
+  }
+
+  function triggerDay7Popup() {
+    picnicTriggered = true;
+    currentSpeedMultiplier = 1; // Slow simulation back down to original speed
+    document.getElementById('chat-item-evian').style.display = 'flex';
+    document.getElementById('popup-overlay').style.display = 'flex';
+  }
+
+  function acceptPicnicPopup() {
+    document.getElementById('popup-overlay').style.display = 'none';
+    openApp('messages');
+    openThread('evian');
+  }
+
+  // Dynamic Ambient Timer Loop
+  setInterval(() => {
+    if (isEnding) return;
+    const isOpen = timeMins >= openTimeMins && timeMins < closeTimeMins;
+    if (isOpen) {
+      advanceTime(15 * currentSpeedMultiplier);
+    } else {
+      advanceTime(1 * currentSpeedMultiplier); // Time speeding now applies while waiting outside as well
+    }
+  }, 500);
+
+  // A-BUTTON JUMP ACTION
+  function triggerLineJump() {
+    if (crowdJumpY === 0 && !isEnding) {
+      jumpVel = -6;
+    }
+  }
+
+  // TOP SCREEN SCENE DRAWING
+  const streetCanvas = document.getElementById('street-canvas');
+  const sCtx = streetCanvas.getContext('2d');
+
+  let cars = [];
+  let pedestrians = [];
+  let raindrops = [];
+  for (let i = 0; i < 30; i++) {
+    raindrops.push({ x: Math.random() * 356, y: Math.random() * 256, speed: 6 + Math.random() * 4 });
+  }
+
+  // Picnic Pedestrians
+  let picnicWalkers = [
+    { x: -20, speed: 0.4, color: '#e74c3c' },
+    { x: 380, speed: -0.3, color: '#f39c12' }
+  ];
+
+  function interpolateColor(c1, c2, factor) {
+    let result = c1.slice();
+    for (let i = 0; i < 3; i++) result[i] = Math.round(result[i] + factor * (c2[i] - c1[i]));
+    return `rgb(${result[0]}, ${result[1]}, ${result[2]})`;
+  }
+
+  function getSkyColor(time) {
+    const night = [10, 12, 25];
+    if (time <= 360 || time >= 1140) return `rgb(${night[0]}, ${night[1]}, ${night[2]})`;
+    const dawn = [180, 80, 110];
+    const morning = [135, 206, 235];
+    const dusk = [210, 105, 30];
+
+    if (time < 420) return interpolateColor(night, dawn, (time - 360) / 60);
+    if (time < 540) return interpolateColor(dawn, morning, (time - 420) / 120);
+    if (time < 1020) return `rgb(${morning[0]}, ${morning[1]}, ${morning[2]})`;
+    if (time < 1140) return interpolateColor(morning, dusk, (time - 1020) / 120);
+    return interpolateColor(dusk, night, (time - 1140) / 60);
+  }
+
+  function updateCrowdsAndTraffic() {
+    const isOpen = timeMins >= openTimeMins && timeMins < closeTimeMins;
+    const isLateNight = (timeMins >= 0 && timeMins < 240);
+    let targetCarCount = isOpen ? 6 : 2;
+    if (isLateNight) targetCarCount = 0;
+
+    while (cars.length > targetCarCount) cars.pop();
+
+    while (cars.length < targetCarCount) {
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      cars.push({
+        x: dir === 1 ? -60 - Math.random() * 100 : 380 + Math.random() * 100,
+        speed: dir * (2.0 + Math.random() * 1.5),
+        color: ['#111', '#c0392b', '#2980b9', '#f39c12', '#bdc3c7'][Math.floor(Math.random() * 5)]
+      });
+    }
+
+    const targetPedCount = isOpen ? 10 : (isLateNight ? 1 : 3);
+    while (pedestrians.length < targetPedCount) {
+      pedestrians.push({
+        x: Math.random() * 356,
+        y: 196 + Math.random() * 8,
+        speed: 0.3 + Math.random() * 0.4,
+        dir: Math.random() < 0.5 ? 1 : -1,
+        color: ['#ffcc99', '#f39c12', '#1abc9c', '#e67e22', '#e74c3c'][Math.floor(Math.random() * 5)]
+      });
+    }
+  }
+
+  function drawJapanesePachinkoFacade() {
+    const isOpen = timeMins >= openTimeMins && timeMins < closeTimeMins;
+
+    sCtx.fillStyle = isOpen ? '#181b22' : '#333742';
+    sCtx.fillRect(10, 20, 336, 170);
+
+    sCtx.fillStyle = isOpen ? '#0a0a0f' : '#14161a';
+    sCtx.fillRect(15, 25, 326, 38);
+    sCtx.strokeStyle = isOpen ? '#ff0055' : '#4a101d';
+    sCtx.lineWidth = 2;
+    sCtx.strokeRect(15, 25, 326, 38);
+
+    if (isOpen) {
+      const flash = Math.floor(animTick / 10) % 2 === 0;
+      sCtx.fillStyle = flash ? '#ff0055' : '#ff5599';
+    } else {
+      sCtx.fillStyle = '#661a22';
+    }
+    sCtx.font = '10px "Press Start 2P"';
+    sCtx.fillText('パチンコ', 25, 50);
+
+    sCtx.fillStyle = isOpen ? '#00ffff' : '#225566';
+    sCtx.fillText('K I N G', 190, 50);
+
+    for (let gx = 35; gx < 330; gx += 50) {
+      if (isOpen) {
+        sCtx.strokeStyle = `hsl(${(animTick * 6 + gx) % 360}, 100%, 60%)`;
+      } else {
+        sCtx.strokeStyle = '#222630';
+      }
+      sCtx.beginPath();
+      sCtx.arc(gx, 80, 14, 0, Math.PI * 2);
+      sCtx.stroke();
+      sCtx.beginPath();
+      sCtx.arc(gx, 80, 8, 0, Math.PI * 2);
+      sCtx.stroke();
+    }
+
+    if (isOpen) {
+      sCtx.fillStyle = '#fff2a3';
+      sCtx.fillRect(25, 110, 306, 80);
+
+      for (let px = 35; px < 320; px += 42) {
+        sCtx.fillStyle = '#ff2200';
+        sCtx.fillRect(px, 120, 32, 50);
+        sCtx.fillStyle = '#ffff00';
+        sCtx.fillRect(px + 4, 125, 24, 18);
+        sCtx.fillStyle = '#000';
+        sCtx.font = '5px "Press Start 2P"';
+        sCtx.fillText('新台', px + 6, 137);
+      }
+
+      for (let a = 0; a < 12; a++) {
+        const ax = 120 + Math.cos((a / 11) * Math.PI) * 55;
+        const ay = 185 - Math.sin((a / 11) * Math.PI) * 45;
+        sCtx.fillStyle = a % 2 === 0 ? '#ff0000' : '#ffffff';
+        sCtx.beginPath();
+        sCtx.arc(ax, ay, 5, 0, Math.PI * 2);
+        sCtx.fill();
+      }
+    } else {
+      sCtx.fillStyle = '#22252e';
+      sCtx.fillRect(25, 110, 306, 80);
+      sCtx.strokeStyle = '#15171d';
+      sCtx.lineWidth = 1;
+      
+      for (let sy = 110; sy < 190; sy += 5) {
+        sCtx.beginPath();
+        sCtx.moveTo(25, sy);
+        sCtx.lineTo(331, sy);
+        sCtx.stroke();
+      }
+      
+      sCtx.strokeStyle = '#111318';
+      sCtx.lineWidth = 2;
+      sCtx.strokeRect(25, 110, 306, 80);
+      sCtx.beginPath();
+      sCtx.moveTo(178, 110);
+      sCtx.lineTo(178, 190);
+      sCtx.stroke();
+    }
+  }
+
+  function drawPicnicParkScene() {
+    // Beautiful Blue Sky
+    sCtx.fillStyle = '#7ec0ee';
+    sCtx.fillRect(0, 0, 356, 120);
+
+    // Fluffy White Clouds
+    sCtx.fillStyle = '#ffffff';
+    sCtx.beginPath(); sCtx.arc(60, 40, 18, 0, Math.PI * 2); sCtx.arc(85, 35, 24, 0, Math.PI * 2); sCtx.arc(110, 40, 18, 0, Math.PI * 2); sCtx.fill();
+    sCtx.beginPath(); sCtx.arc(250, 50, 16, 0, Math.PI * 2); sCtx.arc(272, 45, 20, 0, Math.PI * 2); sCtx.arc(295, 50, 16, 0, Math.PI * 2); sCtx.fill();
+
+    // Rolling Green Hills in Background
+    sCtx.fillStyle = '#5c9e32';
+    sCtx.beginPath(); sCtx.arc(100, 160, 100, Math.PI, 0); sCtx.fill();
+    sCtx.beginPath(); sCtx.arc(260, 160, 120, Math.PI, 0); sCtx.fill();
+
+    // Lush Foreground Lawn & Park Pathway
+    sCtx.fillStyle = '#488e28';
+    sCtx.fillRect(0, 130, 356, 126);
+
+    // Winding Dirt Pathway
+    sCtx.fillStyle = '#d2b48c';
+    sCtx.beginPath();
+    sCtx.moveTo(0, 200);
+    sCtx.quadraticCurveTo(180, 190, 356, 220);
+    sCtx.lineTo(356, 256);
+    sCtx.lineTo(0, 256);
+    sCtx.fill();
+
+    // Lush Green Trees
+    drawTree(30, 110);
+    drawTree(320, 115);
+
+    // Wooden Park Bench in Center
+    const bX = 148, bY = 160;
+    // Bench Legs & Frame
+    sCtx.fillStyle = '#3a2510';
+    sCtx.fillRect(bX + 4, bY + 18, 4, 12);
+    sCtx.fillRect(bX + 52, bY + 18, 4, 12);
+    sCtx.fillRect(bX + 28, bY + 18, 4, 12);
+    // Bench Wood Slats
+    sCtx.fillStyle = '#8b5a2b';
+    sCtx.fillRect(bX, bY, 60, 6);
+    sCtx.fillRect(bX, bY + 8, 60, 6);
+    sCtx.fillRect(bX - 2, bY + 15, 64, 5);
+
+    // Two People Sitting Together on Bench
+    // Person 1 (Player - Left)
+    sCtx.fillStyle = '#3498db';
+    sCtx.fillRect(bX + 12, bY - 2, 12, 16); // Body
+    sCtx.fillStyle = '#ffcc99';
+    sCtx.beginPath(); sCtx.arc(bX + 18, bY - 8, 6, 0, Math.PI * 2); sCtx.fill(); // Head
+
+    // Person 2 (Evian Friend - Right)
+    sCtx.fillStyle = '#e74c3c';
+    sCtx.fillRect(bX + 36, bY - 2, 12, 16); // Body
+    sCtx.fillStyle = '#ffcc99';
+    sCtx.beginPath(); sCtx.arc(bX + 42, bY - 8, 6, 0, Math.PI * 2); sCtx.fill(); // Head
+
+    // Picnic Basket & Evian Water Bottle between them
+    sCtx.fillStyle = '#d35400';
+    sCtx.fillRect(bX + 26, bY + 10, 8, 6); // Basket
+    sCtx.fillStyle = '#00ffff';
+    sCtx.fillRect(bX + 29, bY + 5, 2, 5); // Bottle
+
+    // Slowly Walking Park Visitors
+    picnicWalkers.forEach(w => {
+      w.x += w.speed;
+      if (w.speed > 0 && w.x > 380) w.x = -20;
+      if (w.speed < 0 && w.x < -20) w.x = 380;
+
+      sCtx.fillStyle = w.color;
+      sCtx.fillRect(w.x, 195, 6, 12);
+      sCtx.fillStyle = '#ffcc99';
+      sCtx.beginPath(); sCtx.arc(w.x + 3, 191, 3, 0, Math.PI * 2); sCtx.fill();
+    });
+  }
+
+  function drawTree(x, y) {
+    sCtx.fillStyle = '#5c4033';
+    sCtx.fillRect(x - 4, y, 8, 30);
+    sCtx.fillStyle = '#2d6a14';
+    sCtx.beginPath(); sCtx.arc(x, y - 10, 18, 0, Math.PI * 2); sCtx.fill();
+    sCtx.beginPath(); sCtx.arc(x - 10, y - 4, 14, 0, Math.PI * 2); sCtx.fill();
+    sCtx.beginPath(); sCtx.arc(x + 10, y - 4, 14, 0, Math.PI * 2); sCtx.fill();
+  }
+
+  function drawStreetScene() {
+    animTick++;
+
+    if (isEnding) {
+      drawPicnicParkScene();
+      requestAnimationFrame(drawStreetScene);
+      return;
+    }
+
+    if (jumpVel !== 0 || crowdJumpY < 0) {
+      crowdJumpY += jumpVel;
+      jumpVel += 0.8;
+      if (crowdJumpY >= 0) {
+        crowdJumpY = 0;
+        jumpVel = 0;
+      }
+    }
+
+    updateCrowdsAndTraffic();
+
+    sCtx.fillStyle = getSkyColor(timeMins);
+    sCtx.fillRect(0, 0, 356, 190);
+
+    drawJapanesePachinkoFacade();
+
+    sCtx.fillStyle = '#2d323f';
+    sCtx.fillRect(0, 190, 356, 25);
+    sCtx.strokeStyle = '#454c5e';
+    sCtx.lineWidth = 1;
+    for (let x = 0; x < 356; x += 16) {
+      sCtx.beginPath(); sCtx.moveTo(x, 190); sCtx.lineTo(x, 215); sCtx.stroke();
+    }
+
+    sCtx.fillStyle = '#12141a';
+    sCtx.fillRect(0, 215, 356, 41);
+
+    sCtx.strokeStyle = '#ffff00';
+    sCtx.setLineDash([12, 10]);
+    sCtx.beginPath(); sCtx.moveTo(0, 235); sCtx.lineTo(356, 235); sCtx.stroke();
+    sCtx.setLineDash([]);
+
+    const isOpen = timeMins >= openTimeMins && timeMins < closeTimeMins;
+
+    if (!isOpen) {
+      const queueCount = 3 + Math.floor((timeMins - 330) / 10);
+      for (let i = 0; i < Math.min(queueCount, 18); i++) {
+        const qX = 40 + i * 12;
+        const qY = 202 + crowdJumpY;
+
+        sCtx.fillStyle = '#3b4354';
+        sCtx.fillRect(qX, qY, 7, 12);
+        sCtx.fillStyle = '#ffcc99';
+        sCtx.beginPath(); sCtx.arc(qX + 3.5, qY - 3, 3, 0, Math.PI * 2); sCtx.fill();
+
+        if (isRaining) {
+          sCtx.fillStyle = '#e74c3c';
+          sCtx.beginPath(); sCtx.arc(qX + 3.5, qY - 7, 6, Math.PI, 0); sCtx.fill();
+        }
+      }
+    }
+
+    pedestrians.forEach(p => {
+      p.x += p.speed * p.dir;
+      if (p.x > 360) p.dir = -1;
+      if (p.x < -10) p.dir = 1;
+
+      sCtx.fillStyle = p.color;
+      sCtx.beginPath(); sCtx.arc(p.x, p.y - 8, 2.5, 0, Math.PI * 2); sCtx.fill();
+      sCtx.fillStyle = '#1e2430';
+      sCtx.fillRect(p.x - 2, p.y - 5, 4, 10);
+    });
+
+    cars.forEach(car => {
+      car.x += car.speed;
+      if (car.speed > 0 && car.x > 380) car.x = -60;
+      if (car.speed < 0 && car.x < -60) car.x = 380;
+
+      sCtx.fillStyle = car.color;
+      sCtx.fillRect(car.x, 226, 42, 14);
+      sCtx.fillStyle = '#000';
+      sCtx.fillRect(car.x + 6, 222, 28, 6);
+
+      sCtx.fillStyle = car.speed > 0 ? '#ffff00' : '#ff0000';
+      sCtx.fillRect(car.speed > 0 ? car.x + 38 : car.x, 228, 4, 4);
+    });
+
+    if (isRaining) {
+      sCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+      sCtx.lineWidth = 1;
+      for (let r of raindrops) {
+        sCtx.beginPath(); sCtx.moveTo(r.x, r.y); sCtx.lineTo(r.x - 1, r.y + 6); sCtx.stroke();
+        r.y += r.speed;
+        if (r.y > 256) { r.y = -10; r.x = Math.random() * 356; }
+      }
+    }
+
+    requestAnimationFrame(drawStreetScene);
+  }
+
+  // APP NAVIGATION
+  function openApp(appId) {
+    document.querySelectorAll('.app-view').forEach(el => el.style.display = 'none');
+    document.getElementById(`app-${appId}`).style.display = 'flex';
+  }
+
+  function closeApp() {
+    document.querySelectorAll('.app-view').forEach(el => el.style.display = 'none');
+  }
+
+  // MESSAGES APP LOGIC
+  function openThread(key) {
+    activeThread = key;
+    document.getElementById('thread-view').style.display = 'flex';
+    document.getElementById('thread-title').innerText = threads[key].name;
+    renderMessages();
+  }
+
+  function closeThread() {
+    activeThread = null;
+    document.getElementById('thread-view').style.display = 'none';
+  }
+
+  function renderMessages() {
+    if (!activeThread) return;
+    const thread = threads[activeThread];
+    const container = document.getElementById('message-bubbles');
+    container.innerHTML = '';
+
+    for (let i = 0; i <= thread.index && i < thread.messages.length; i++) {
+      const msg = thread.messages[i];
+      const bubble = document.createElement('div');
+      bubble.className = `bubble ${msg.sender}`;
+      bubble.innerText = msg.text;
+      container.appendChild(bubble);
+    }
+    container.scrollTop = container.scrollHeight;
+
+    const lastMsg = thread.messages[Math.min(thread.index, thread.messages.length - 1)].text;
+    if (document.getElementById(`prev-${activeThread}`)) {
+      document.getElementById(`prev-${activeThread}`).innerText = lastMsg;
+    }
+
+    const sendBtn = document.getElementById('chat-send-btn');
+    if (thread.index >= thread.messages.length - 1) {
+      sendBtn.innerText = "END OF CONVERSATION";
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = "0.5";
+    } else {
+      sendBtn.innerText = "TAP TO SEND MESSAGE";
+      sendBtn.disabled = false;
+      sendBtn.style.opacity = "1";
+    }
+  }
+
+  function sendNextMessage() {
+    if (!activeThread) return;
+    const thread = threads[activeThread];
+    if (thread.index < thread.messages.length - 1) {
+      thread.index++;
+      renderMessages();
+
+      // Check if this was the final message agreeing to meet up with Evian
+      if (activeThread === 'evian' && thread.index === thread.messages.length - 1) {
+        setTimeout(transitionToPicnicEnding, 800);
+      } else {
+        advanceTime(5);
+      }
+    }
+  }
+
+  // FADE TO WHITE TRANSITION
+  function transitionToPicnicEnding() {
+    const topFade = document.getElementById('top-fade');
+    const bottomFade = document.getElementById('bottom-fade');
+
+    topFade.classList.add('active');
+    bottomFade.classList.add('active');
+
+    setTimeout(() => {
+      // Setup picnic scene state while screen is pure white
+      triggerPicnicEnding();
+
+      // Fade back in
+      topFade.classList.remove('active');
+      bottomFade.classList.remove('active');
+    }, 1500);
+  }
+
+  function triggerPicnicEnding() {
+    isEnding = true;
+    document.getElementById('top-hud').style.display = 'none'; // Hide HUD in picnic state
+    document.getElementById('congrats-screen').style.display = 'flex';
+
+    setTimeout(() => {
+      document.getElementById('congrats-album-btn').style.display = 'inline-block';
+    }, 1000);
+  }
+
+  // ROLLING CREDITS GENERATOR & ALBUM LOOP
+  const creditPositions = [
+    "EXECUTIVE PRODUCER", "LEAD COMPOSER", "SYNTHESIZER PROGRAMMER",
+    "PICO-8 SOUND DESIGN", "PACHINKO MECHANICS ENGINEER", "CRANE GAME CONSULTANT",
+    "ACOUSTIC GUITAR", "ELECTRIC BASS", "VINTAGE DRUM MACHINE",
+    "EVIAN BOTTLE PERCUSSION", "8-BIT SYNTH OPERATOR", "RETRO DERBY HANDICAPPER",
+    "TAMAGOTCHI NUTRITIONIST", "CRT SCANLINE ARTIST", "QUEUE THERMODYNAMICS",
+    "PARLOR AMBIENCE RECORDIST", "SUPER FEVERRush DESIGNER", "PIXEL SPRITE CHOREOGRAPHER",
+    "HOT TEA VENDING COORDINATOR", "MORNING FROST ADVISOR", "DISTANT TRAIN SOUND FX",
+    "NEON TUBE MAINTENANCE", "MONEY DROP MIXER", "PARK BENCH ARCHITECT",
+    "SANDWICH ARTIST", "PICNIC BASKET WEAVER", "ALBUM MASTERING ENGINEER",
+    "SPECIAL THANKS", "DEDICATED TO ALL EARLY RISERS"
+  ];
+
+  const creditNames = [
+    "djfmcl", "evian water", "yucho support", "mom", "king pachinko staff",
+    "unit 4 champion", "derby thunder", "tama pet 01", "suginami train line",
+    "konbini hot tea", "vending master 9000", "pachinko wizard", "neon blossom",
+    "circuit bender", "lo-fi dreamer", "8-bit hero", "subway acoustic",
+    "retro groove lab", "analog spirit", "digital ghost", "arcade survivor",
+    "morning queue squad", "bench watcher", "picnic enjoyer"
+  ];
+
+  function generateLongCredits() {
+    const container = document.getElementById('credits-scroll');
+    container.innerHTML = '';
+
+    // Title Header
+    const head = document.createElement('div');
+    head.className = 'credit-item';
+    head.innerHTML = `<div class="credit-role">--- ORIGINAL ALBUM CREDITS ---</div><div class="credit-name">PACHINKO DREAMS OST</div>`;
+    container.appendChild(head);
+
+    // Generate ~100 random role/person entries for an insanely long film-style credits roll
+    for (let i = 0; i < 100; i++) {
+      const pos = creditPositions[Math.floor(Math.random() * creditPositions.length)];
+      const name = creditNames[Math.floor(Math.random() * creditNames.length)];
+      const item = document.createElement('div');
+      item.className = 'credit-item';
+      item.innerHTML = `<div class="credit-role">${pos}</div><div class="credit-name">${name}</div>`;
+      container.appendChild(item);
+    }
+
+    // Ending Credit
+    const foot = document.createElement('div');
+    foot.className = 'credit-item';
+    foot.style.marginTop = "30px";
+    foot.innerHTML = `<div class="credit-role">THANK YOU FOR PLAYING</div><div class="credit-name">SEE YOU NEXT DAY 05:30 AM</div>`;
+    container.appendChild(foot);
+  }
+
+  let fullAlbumLooping = false;
+
+  function startAlbumAndCredits() {
+    // Slowly fade out congrats title & button
+    const congratsContent = document.getElementById('congrats-content');
+    congratsContent.style.opacity = '0';
+    setTimeout(() => { congratsContent.style.display = 'none'; }, 2000);
+
+    // Generate and roll endless credits
+    generateLongCredits();
+    const scrollEl = document.getElementById('credits-scroll');
+    scrollEl.classList.add('rolling');
+
+    // Start playing all tracks endlessly in loop
+    fullAlbumLooping = true;
+    currentTrackIdx = 0;
+    playFullAlbumSequence();
+  }
+
+  function playFullAlbumSequence() {
+    if (!fullAlbumLooping) return;
+    startSynthMusicSequence(() => {
+      // When current track ends, advance to next
+      currentTrackIdx = (currentTrackIdx + 1) % albumTracks.length;
+      playFullAlbumSequence(); // Loop continuously back around
+    });
+  }
+
+  function startSynthMusicSequence(onTrackFinished) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let noteIndex = 0;
+    const notes = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+    const totalSongNotes = 32; // Full album length track playback
+
+    stopSynthMusic();
+
+    audioSynthLoop = setInterval(() => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = notes[(noteIndex + currentTrackIdx * 2) % notes.length];
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.25);
+      noteIndex++;
+
+      if (noteIndex >= totalSongNotes) {
+        stopSynthMusic();
+        if (onTrackFinished) onTrackFinished();
+      }
+    }, 200);
+  }
+
+  // HORSE BETTING APP LOGIC
+  let selectedHorse = 1;
+  let isRaceRunning = false;
+
+  function selectHorse(num) {
+    if (isRaceRunning) return;
+    selectedHorse = num;
+    document.querySelectorAll('.odds-row').forEach((row, idx) => {
+      row.classList.toggle('selected', idx + 1 === num);
+    });
+  }
+
+  function startHorseRace() {
+    if (isRaceRunning || totalCredits < 100) return;
+    totalCredits -= 100;
+    creditEl.innerText = formatDigits(totalCredits);
+
+    isRaceRunning = true;
+    document.getElementById('race-btn').disabled = true;
+    document.getElementById('horse-status').innerText = "RACE IN PROGRESS...";
+
+    const pos = [0, 0, 0, 0];
+    const raceInterval = setInterval(() => {
+      for (let i = 0; i < 4; i++) {
+        pos[i] += Math.random() * 8 + 2;
+        document.getElementById(`h${i+1}`).style.left = `${Math.min(pos[i], 270)}px`;
+      }
+
+      const winnerIdx = pos.findIndex(p => p >= 270);
+      if (winnerIdx !== -1) {
+        clearInterval(raceInterval);
+        const winnerNum = winnerIdx + 1;
+        const won = winnerNum === selectedHorse;
+        const odds = [3.5, 2.1, 5.0, 8.5][winnerIdx];
+        
+        if (won) {
+          const payout = Math.floor(100 * odds);
+          totalCredits += payout;
+          creditEl.innerText = formatDigits(totalCredits);
+          document.getElementById('horse-status').innerText = `WIN! +${payout} CREDITS`;
+        } else {
+          document.getElementById('horse-status').innerText = `#${winnerNum} WON! TRY AGAIN`;
+        }
+
+        setTimeout(() => {
+          for (let i = 0; i < 4; i++) document.getElementById(`h${i+1}`).style.left = '0px';
+          isRaceRunning = false;
+          document.getElementById('race-btn').disabled = false;
+        }, 2000);
+      }
+    }, 100);
+  }
+
+  // TAMAGOTCHI APP LOGIC
+  let tamaHappy = 3;
+  let tamaFood = 3;
+
+  function updateTamaDisplay() {
+    document.getElementById('tama-happy').innerText = `HAPPY: ${'❤️'.repeat(tamaHappy)}`;
+    document.getElementById('tama-food').innerText = `HUNGER: ${'🍔'.repeat(tamaFood)}`;
+    if (tamaHappy <= 0 || tamaFood <= 0) {
+      document.getElementById('tama-pet').innerText = '🪦';
+      document.getElementById('tama-msg').innerText = 'PET PASSED AWAY...';
+    } else {
+      document.getElementById('tama-pet').innerText = tamaHappy > 2 ? '👾' : '😢';
+    }
+  }
+
+  function feedTama() {
+    if (tamaFood < 4) tamaFood++;
+    document.getElementById('tama-msg').innerText = 'YUMMY!';
+    updateTamaDisplay();
+  }
+
+  function playTama() {
+    if (tamaHappy < 4) tamaHappy++;
+    if (tamaFood > 0) tamaFood--;
+    document.getElementById('tama-msg').innerText = 'SO MUCH FUN!';
+    updateTamaDisplay();
+  }
+
+  function cleanTama() {
+    document.getElementById('tama-msg').innerText = 'CLEAN & TIDY!';
+    updateTamaDisplay();
+  }
+
+  // MUSIC PLAYER CONTROLS
+  function updateTrackDisplay() {
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const prevBtn = document.getElementById('btn-prev-track');
+    const nextBtn = document.getElementById('btn-next-track');
+
+    if (unlockedTrackCount === 0 && !isEnding) {
+      document.getElementById('track-title').innerText = "TRACKS LOCKED";
+      document.getElementById('track-artist').innerText = "Play pachinko to unlock songs";
+      document.getElementById('playing-status').innerText = "";
+      document.getElementById('album-art').innerText = "🔒";
+      playPauseBtn.disabled = true;
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      return;
+    }
+
+    const effectiveUnlockedCount = isEnding ? albumTracks.length : unlockedTrackCount;
+
+    playPauseBtn.disabled = false;
+    prevBtn.disabled = effectiveUnlockedCount <= 1;
+    nextBtn.disabled = effectiveUnlockedCount <= 1;
+
+    const t = albumTracks[currentTrackIdx];
+    document.getElementById('track-title').innerText = t.title;
+    document.getElementById('track-artist').innerText = t.artist;
+    document.getElementById('album-art').innerText = t.icon;
+  }
+
+  function toggleMusic() {
+    const btn = document.getElementById('play-pause-btn');
+    if (!isMusicPlaying) {
+      startSynthMusic();
+      isMusicPlaying = true;
+      btn.innerText = '⏸';
+      document.getElementById('playing-status').innerText = "🎵 NOW PLAYING";
+    } else {
+      stopSynthMusic();
+      isMusicPlaying = false;
+      btn.innerText = '▶️';
+      document.getElementById('playing-status').innerText = "⏸️ PAUSED";
+    }
+  }
+
+  function nextTrack() {
+    const effectiveUnlockedCount = isEnding ? albumTracks.length : unlockedTrackCount;
+    if (effectiveUnlockedCount <= 1) return;
+    currentTrackIdx = (currentTrackIdx + 1) % effectiveUnlockedCount;
+    updateTrackDisplay();
+    if (isMusicPlaying) {
+      stopSynthMusic();
+      startSynthMusic();
+    }
+  }
+
+  function prevTrack() {
+    const effectiveUnlockedCount = isEnding ? albumTracks.length : unlockedTrackCount;
+    if (effectiveUnlockedCount <= 1) return;
+    currentTrackIdx = (currentTrackIdx - 1 + effectiveUnlockedCount) % effectiveUnlockedCount;
+    updateTrackDisplay();
+    if (isMusicPlaying) {
+      stopSynthMusic();
+      startSynthMusic();
+    }
+  }
+
+  function startSynthMusic() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let noteIndex = 0;
+    const notes = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+    const totalSongNotes = 16;
+
+    audioSynthLoop = setInterval(() => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = notes[(noteIndex + currentTrackIdx * 2) % notes.length];
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.25);
+      noteIndex++;
+
+      if (noteIndex >= totalSongNotes) {
+        noteIndex = 0;
+        advanceTime(10);
+      }
+    }, 220);
+  }
+
+  function stopSynthMusic() {
+    if (audioSynthLoop) clearInterval(audioSynthLoop);
+  }
+
+  // EMBEDDED PACHINKO GAME ENGINE
+  const svgArts = {
+    okinawa: `<svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#ff00ff"/><circle cx="50" cy="50" r="35" fill="#ffff00"/><text x="50" y="62" font-size="32" text-anchor="middle" fill="#000">🌺</text></svg>`,
+    seaStory: `<svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#00ffff"/><circle cx="50" cy="50" r="35" fill="#0000ff"/><text x="50" y="62" font-size="32" text-anchor="middle" fill="#fff">🦀</text></svg>`,
+    edoCyber: `<svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#00ff00"/><circle cx="50" cy="50" r="35" fill="#ff0000"/><text x="50" y="62" font-size="32" text-anchor="middle" fill="#fff">⚡</text></svg>`,
+    jackpot: `<svg viewBox="0 0 100 100"><rect width="100" height="100" fill="#ffff00"/><circle cx="50" cy="50" r="35" fill="#ff0000"/><text x="50" y="62" font-size="28" font-weight="bold" text-anchor="middle" fill="#fff">777</text></svg>`
+  };
+
+  const pachinkoTracks = [
+    { title: "UNLOCKED: 01. Dawn Queue Loop", art: svgArts.okinawa },
+    { title: "UNLOCKED: 02. Neon Vapors", art: svgArts.seaStory },
+    { title: "UNLOCKED: 03. Shivering In Line", art: svgArts.edoCyber },
+    { title: "UNLOCKED: 04. Fever Time", art: svgArts.jackpot },
+    { title: "UNLOCKED: 05. 8:00 AM Doors Open", art: svgArts.jackpot, isBonus: true }
+  ];
+
+  let currentPachinkoIdx = 0;
+  let totalCredits = 1000;
+  let winPayout = 0;
+
+  const ledRing = document.getElementById('led-ring');
+  const spinButton = document.getElementById('spin-button');
+  const pachinkoTrackTitle = document.getElementById('pachinko-track-title');
+  const jackpotHeader = document.getElementById('jackpot-header');
+  const creditEl = document.getElementById('credit-count');
+  const payoutEl = document.getElementById('payout-count');
+
+  function formatDigits(num) { return String(num).padStart(5, '0'); }
+
+  function spinPachinko() {
+    if (totalCredits < 50) return;
+    totalCredits -= 50;
+    creditEl.innerText = formatDigits(totalCredits);
+
+    advanceTime(4);
+
+    spinButton.disabled = true;
+    ledRing.className = 'led-ring spinning';
+    jackpotHeader.style.display = 'none';
+
+    const isLoss = Math.random() < 0.35;
+    const currentTrack = pachinkoTracks[Math.min(currentPachinkoIdx, pachinkoTracks.length - 1)];
+    const reelEls = [document.getElementById('reel-1'), document.getElementById('reel-2'), document.getElementById('reel-3')];
+
+    reelEls.forEach(reel => reel.classList.add('blur-spin'));
+
+    reelEls.forEach((reel, index) => {
+      setTimeout(() => {
+        reel.classList.remove('blur-spin');
+        if (isLoss && index === 2) {
+          reel.innerText = '💀';
+        } else {
+          reel.innerHTML = currentTrack.art;
+        }
+
+        if (index === 2) {
+          if (isLoss) {
+            onPachinkoLoss();
+          } else {
+            onPachinkoWin(currentTrack);
+          }
+        }
+      }, 600 + (index * 300));
+    });
+  }
+
+  function onPachinkoLoss() {
+    ledRing.className = 'led-ring idle';
+    pachinkoTrackTitle.innerText = "REELS MISSED! TRY AGAIN";
+    payoutEl.innerText = formatDigits(0);
+    spinButton.disabled = false;
+  }
+
+  function onPachinkoWin(track) {
+    if (unlockedTrackCount < albumTracks.length) {
+      unlockedTrackCount++;
+      updateTrackDisplay();
+    }
+
+    if (unlockedTrackCount === albumTracks.length) {
+      ledRing.className = 'led-ring jackpot';
+      jackpotHeader.style.display = 'block';
+      pachinkoTrackTitle.innerText = "ALL SONGS UNLOCKED! PLAY FOR FUN";
+      triggerPayout(777, true);
+      spinButton.innerText = "★ SPIN FOR FUN ★";
+      spinButton.disabled = false;
+      if (currentPachinkoIdx < pachinkoTracks.length) currentPachinkoIdx++;
+      return;
+    }
+
+    ledRing.className = 'led-ring idle';
+    pachinkoTrackTitle.innerText = track.title;
+    triggerPayout(150, false);
+    currentPachinkoIdx++;
+
+    spinButton.innerText = "★ NEXT SPIN ★";
+    spinButton.disabled = false;
+  }
+
+  function triggerPayout(amount, isJackpot) {
+    let coinsLeft = amount;
+    winPayout = 0;
+    const interval = setInterval(() => {
+      if (coinsLeft <= 0) { clearInterval(interval); return; }
+      const step = isJackpot ? 25 : 5;
+      const pStep = Math.min(coinsLeft, step);
+      coinsLeft -= pStep;
+      winPayout += pStep;
+      totalCredits += pStep;
+
+      payoutEl.innerText = formatDigits(winPayout);
+      creditEl.innerText = formatDigits(totalCredits);
+
+      spawnCoins(isJackpot ? 4 : 2);
+    }, 40);
+  }
+
+  // Canvas Coin Physics
+  const canvas = document.getElementById('effects-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 356;
+  canvas.height = 228;
+  let coins = [];
+
+  class Coin {
+    constructor(x, y) {
+      this.x = x + (Math.random() - 0.5) * 40;
+      this.y = y;
+      this.vx = (Math.random() - 0.5) * 6;
+      this.vy = Math.random() * -3 - 2;
+      this.gravity = 0.4;
+      this.radius = 6;
+      this.rotation = Math.random() * Math.PI;
+      this.spinSpeed = 0.3;
+      this.bounce = 0.4;
+      this.groundY = 220;
+    }
+
+    update() {
+      this.vy += this.gravity;
+      this.x += this.vx;
+      this.y += this.vy;
+      this.rotation += this.spinSpeed;
+
+      if (this.y + this.radius >= this.groundY) {
+        this.y = this.groundY - this.radius;
+        this.vy *= -this.bounce;
+      }
+    }
+
+    draw() {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.scale(Math.cos(this.rotation), 1);
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffff00';
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ff00ff';
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function spawnCoins(count) {
+    for (let i = 0; i < count; i++) {
+      coins.push(new Coin(178, 110));
+    }
+  }
+
+  function renderCoins() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    coins.forEach((c, idx) => {
+      c.update();
+      c.draw();
+      if (Math.abs(c.vy) < 0.2 && c.y >= c.groundY - c.radius - 1) coins.splice(idx, 1);
+    });
+    requestAnimationFrame(renderCoins);
+  }
+
+  // Initialize
+  drawStreetScene();
+  renderCoins();
+  updateTrackDisplay();
+</script>
+</body>
+</html>
